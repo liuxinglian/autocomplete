@@ -42,20 +42,33 @@ def get_review_data(filename, num_reviews=5000):
     return sentences
 
 
-# fixed length for now, length = 8, use previous 7 words to predict the 8th word
-def prepare_input_for_nn(model, sentences):
+# start predicting from the 6th word
+def prepare_train_input_for_nn(model, train_sentences):
     # list of numpy array (each is a embedding representing the previous sequence)
     inputs = []
     # list of string
     true_words = []
-    for sentence in sentences:
-        for i in range(len(sentence)-7):
-            cur = np.zeros(model.vector_size)
-            for j in range(1, 8):
-                cur += j * model[sentence[i+j-1]]
+    for sentence in train_sentences:
+        if len(sentence) < 5:
+            continue
 
-            inputs.append(cur)
-            true_words.append(sentence[i+7])
+        # unnormalized one doesn't divide by the total weight
+        weighted_sum = np.zeros(model.vector_size)
+        total_weight = 0
+        for i in range(5):
+            total_weight += i+1
+            weighted_sum += model[sentence[i]] * (i+1)
+
+        # begin prepare input and label
+        for i in range(5, len(sentence)):
+            cur_input = weighted_sum / total_weight
+            cur_label = sentence[i]
+            inputs.append(cur_input)
+            true_words.append(cur_label)
+
+            weighted_sum += model[sentence[i]] * (i+1)
+            total_weight += i+1
+            
 
     return inputs, true_words
 
@@ -63,10 +76,48 @@ def prepare_input_for_nn(model, sentences):
 def build_nn():
     pass
 
+def get_loss(pred_word, true_word):
+    # consine distance
+    loss = tf.losses.cosine_distance(tf.nn.l2_normalize(pred_word, 0), tf.nn.l2_normalize(true_word, 0), dim=0)
+    return loss
+
+def get_optimizer(loss, lr=0.005):
+    # return a tf operation
+    return tf.train.AdamOptimizer(learning_rate=lr).minimize(loss)
+
+
+def train_nn(model, sess, input_ph, word_ph, loss, train_op, inputs, true_words, batch_size):
+    index = np.arange(len(inputs))
+    # change inputs and true_words vectors to np array
+    inputs = np.reshape(np.array(inputs), (len(inputs), model.vector_size))
+    true_words = np.reshape(np.array(true_words))
+
+    iterations = int(len(inputs)/batch_size)
+
+    for i in range(iterations):
+        batch_index = np.random.choice(index, size=batch_size, replace=True)
+        batch_inputs = inputs[batch_index]
+        batch_words = true_words[batch_index]
+        sess.run(train_op, feed_dict={input_ph: batch_inputs, word_ph: batch_words, training: True})
+        cur_loss = sess.run(loss, feed_dict={input_ph: batch_inputs, word_ph: batch_words, training: True})
+        print("loss for batch {} is {}".format(i, cur_loss))
+
 
 def main():
     model, sentences = get_word_embedding('yelp_academic_dataset_review.json')
     train_fea, train_label = prepare_input_for_nn(model, stentences)
+
+    input_ph = tf.placeholder(tf.float32, [None, model.vector_size])
+    word_ph = tf.placeholder(tf.float32, [None])
+    training = tf.placeholder(tf.bool)
+    nn_model = build_nn()
+    loss = get_loss(nn_model, word_ph)
+    train_op = optimizer(loss)
+
+    # begin training
+    with tf.Session() as sess:
+        print("begin training")
+        train_cnn(model, sess, input_ph, word_ph, loss, train_op, inputs, true_words, 32)
 
 if __name__ == '__main__':
     main()
