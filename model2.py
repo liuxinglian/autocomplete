@@ -1,4 +1,5 @@
 from pathlib import Path
+from operator import itemgetter
 import json
 import numpy as np
 import nltk
@@ -105,8 +106,8 @@ def train_nn(model, sess, saver, input_ph, word_ph, loss, train_op, inputs, true
 
     for i in range(iterations):
         batch_index = np.random.choice(index, size=batch_size, replace=True)
-        batch_inputs = inputs[batch_index]
-        batch_words = true_words[batch_index]
+        batch_inputs = itemgetter(*batch_index)(inputs)
+        batch_words = itemgetter(*batch_index)(true_words)
         batch_inputs_np = np.reshape(np.array(batch_inputs), (batch_size, model.vector_size))
         batch_words_np = np.reshape(np.array(batch_words), (batch_size, model.vector_size))
         sess.run(train_op, feed_dict={input_ph: batch_inputs_np, word_ph: batch_words_np})
