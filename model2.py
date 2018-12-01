@@ -15,7 +15,7 @@ def get_review_data(filename, start=0, end=100000):
         data = f.readlines()
     reviews = [json.loads(x.strip()) for x in data]
     # print(reviews[0]['text'])
-    sentences = [nltk.word_tokenize(reviews[i]['text']) for i in range(start, end)]
+    sentences = [nltk.word_tokenize(reviews[i]['text'].lower()) for i in range(start, end)]
 
     return sentences
 
