@@ -111,7 +111,7 @@ def train_nn(model, sess, saver, input_ph, word_ph, loss, train_op, inputs, true
         batch_inputs_np = np.reshape(np.array(batch_inputs), (batch_size, model.vector_size))
         batch_words_np = np.reshape(np.array(batch_words), (batch_size, model.vector_size))
         sess.run(train_op, feed_dict={input_ph: batch_inputs_np, word_ph: batch_words_np})
-        cur_loss = sess.run(loss, feed_dict={input_ph: batch_inputs, word_ph: batch_words})
+        cur_loss = sess.run(loss, feed_dict={input_ph: batch_inputs_np, word_ph: batch_words_np})
         print("loss for batch {} is {}".format(i, cur_loss))
 
     saver.save(sess, SAVE_PATH)
