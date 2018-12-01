@@ -8,6 +8,17 @@ import gensim.models.keyedvectors as word2vec
 
 SAVE_PATH = './model/m.cpkt'
 
+
+def get_review_data(filename, start=0, end=100000):
+    with open(filename) as f:
+        data = f.readlines()
+    reviews = [json.loads(x.strip()) for x in data]
+    # print(reviews[0]['text'])
+    sentences = [nltk.word_tokenize(reviews[i]['text']) for i in range(start, end)]
+
+    return sentences
+
+
 # return word2Vec model that can extract word embedding
 def get_word_embedding(filename):
 
@@ -16,7 +27,7 @@ def get_word_embedding(filename):
 
     if not saved_model.is_file():
         
-        model = Word2Vec(sentences, size=100, workers=4, sg=1, min_count=1)
+        model = Word2Vec(sentences, size=100, workers=8, sg=1, min_count=1)
         
         # save the trained model
         model.wv.save_word2vec_format('model.txt')
@@ -31,16 +42,6 @@ def get_word_embedding(filename):
     # print(model.most_similar(positive=[model['pizza']], topn=3))
 
     return model, sentences
-
-
-def get_review_data(filename, start=0, end=5000):
-    with open(filename) as f:
-        data = f.readlines()
-    reviews = [json.loads(x.strip()) for x in data]
-    # print(reviews[0]['text'])
-    sentences = [nltk.word_tokenize(reviews[i]['text']) for i in range(start, end)]
-
-    return sentences
 
 
 # start predicting from the 6th word
@@ -58,7 +59,7 @@ def prepare_input_for_nn(model, sentences):
         total_weight = 0
         for i in range(5):
             total_weight += i+1
-            if sentence[i] in model.vocab:
+            if sentence[i] in model.wv.vocab:
                 weighted_sum += model[sentence[i]] * (i+1)
 
         # begin prepare input and label
@@ -66,7 +67,7 @@ def prepare_input_for_nn(model, sentences):
             cur_input = weighted_sum / total_weight
             cur_label = sentence[i]
 
-            if cur_label in model.vocab:
+            if cur_label in model.wv.vocab:
                 inputs.append(cur_input)
                 true_words.append(model[cur_label])
 
@@ -97,8 +98,8 @@ def train_nn(model, sess, saver, input_ph, word_ph, loss, train_op, inputs, true
     print("begin training")
     index = np.arange(len(inputs))
     # change inputs and true_words vectors to np array
-    inputs = np.reshape(np.array(inputs), (len(inputs), model.vector_size))
-    true_words = np.reshape(np.array(true_words), (len(inputs), model.vector_size))
+    ### inputs = np.reshape(np.array(inputs), (len(inputs), model.vector_size))
+    ### true_words = np.reshape(np.array(true_words), (len(inputs), model.vector_size))
 
     iterations = int(len(inputs)/batch_size)
 
@@ -106,7 +107,9 @@ def train_nn(model, sess, saver, input_ph, word_ph, loss, train_op, inputs, true
         batch_index = np.random.choice(index, size=batch_size, replace=True)
         batch_inputs = inputs[batch_index]
         batch_words = true_words[batch_index]
-        sess.run(train_op, feed_dict={input_ph: batch_inputs, word_ph: batch_words})
+        batch_inputs_np = np.reshape(np.array(batch_inputs), (batch_size, model.vector_size))
+        batch_words_np = np.reshape(np.array(batch_words), (batch_size, model.vector_size))
+        sess.run(train_op, feed_dict={input_ph: batch_inputs_np, word_ph: batch_words_np})
         cur_loss = sess.run(loss, feed_dict={input_ph: batch_inputs, word_ph: batch_words})
         print("loss for batch {} is {}".format(i, cur_loss))
 
@@ -162,7 +165,7 @@ def main():
         sess.run(init)
         train_nn(model, sess, saver, input_ph, word_ph, loss, train_op, train_fea, train_label, 32)
 
-    test_sentences = get_review_data('yelp_academic_dataset_review.json', 5000, 6000)
+    test_sentences = get_review_data('yelp_academic_dataset_review.json', 100000, 120000)
     # t_input_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='test_input')
     # t_word_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='test_predicted_label')
     test_true_words, test_pred_words = get_prediction(model, nn_model, test_sentences, input_ph, word_ph)
