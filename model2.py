@@ -9,15 +9,26 @@ import gensim.models.keyedvectors as word2vec
 
 SAVE_PATH = './model/m.cpkt'
 
-# return word2Vec model that can extract word embedding
-def get_word_embedding(filename, start=0, end=5000):
 
-    sentences = get_review_data(filename, start, end)
+def get_review_data(filename, start=0, end=10000):
+    with open(filename) as f:
+        data = f.readlines()
+    reviews = [json.loads(x.strip()) for x in data]
+    # print(reviews[0]['text'])
+    sentences = [nltk.word_tokenize(reviews[i]['text'].lower()) for i in range(start, end)]
+
+    return sentences
+
+
+# return word2Vec model that can extract word embedding
+def get_word_embedding(filename):
+
+    sentences = get_review_data(filename)
     saved_model = my_file = Path('model.txt')
 
     if not saved_model.is_file():
         
-        model = Word2Vec(sentences, size=100, workers=4, sg=1, min_count=1)
+        model = Word2Vec(sentences, size=100, workers=8, sg=1, min_count=1)
         
         # save the trained model
         model.wv.save_word2vec_format('model.txt')
@@ -32,16 +43,6 @@ def get_word_embedding(filename, start=0, end=5000):
     # print(model.most_similar(positive=[model['pizza']], topn=3))
 
     return model, sentences
-
-
-def get_review_data(filename, start=0, end=5000):
-    with open(filename) as f:
-        data = f.readlines()
-    reviews = [json.loads(x.strip()) for x in data]
-    # print(reviews[0]['text'])
-    sentences = [nltk.word_tokenize(reviews[i]['text']) for i in range(start, end)]
-
-    return sentences
 
 
 # start predicting from the 6th word
@@ -80,12 +81,8 @@ def prepare_input_for_nn(model, sentences):
 
 
 def build_nn(input_ph, out_size=100):
-    hidden1 = tf.layers.dense(inputs=input_ph, units=256, activation=tf.nn.relu)
-    hidden2 = tf.layers.dense(inputs=hidden1, units=512, activation=tf.nn.relu)
-    hidden3 = tf.layers.dense(inputs=hidden2, units=1024, activation=tf.nn.elu)
-    hidden4 = tf.layers.dense(inputs=hidden3, units=512, activation=tf.nn.relu)
-    hidden5 = tf.layers.dense(inputs=hidden4, units=256, activation=tf.nn.softmax)
-    output = tf.layers.dense(inputs=hidden5, units=out_size)
+    hidden = tf.layers.dense(inputs=input_ph, units=256, activation=tf.nn.relu)
+    output = tf.layers.dense(inputs=hidden, units=out_size)
     return output
 
 def get_loss(pred_word, true_word):
@@ -98,29 +95,38 @@ def get_optimizer(loss, lr=0.005):
     return tf.train.AdamOptimizer(learning_rate=lr).minimize(loss)
 
 
-def train_nn(model, sess, saver, input_ph, word_ph, loss, train_op, inputs, true_words, batch_size):
+def train_nn(model, sess, saver, input_ph, word_ph, loss, train_op, inputs, true_words, batch_size, num_epoch):
     print("begin training")
     index = np.arange(len(inputs))
     # change inputs and true_words vectors to np array
-    inputs = np.reshape(np.array(inputs), (len(inputs), model.vector_size))
-    true_words = np.reshape(np.array(true_words), (len(inputs), model.vector_size))
+    ### inputs = np.reshape(np.array(inputs), (len(inputs), model.vector_size))
+    ### true_words = np.reshape(np.array(true_words), (len(inputs), model.vector_size))
 
     iterations = int(len(inputs)/batch_size)
 
     for i in range(iterations):
         batch_index = np.random.choice(index, size=batch_size, replace=True)
-
         batch_inputs = itemgetter(*batch_index)(inputs)
         batch_words = itemgetter(*batch_index)(true_words)
         batch_inputs_np = np.reshape(np.array(batch_inputs), (batch_size, model.vector_size))
         batch_words_np = np.reshape(np.array(batch_words), (batch_size, model.vector_size))
-        # batch_inputs = inputs[batch_index]
-        # batch_words = true_words[batch_index]
         sess.run(train_op, feed_dict={input_ph: batch_inputs_np, word_ph: batch_words_np})
-        cur_loss = sess.run(loss, feed_dict={input_ph: batch_words_np, word_ph: batch_words_np})
+        cur_loss = sess.run(loss, feed_dict={input_ph: batch_inputs_np, word_ph: batch_words_np})
         print("loss for batch {} is {}".format(i, cur_loss))
 
+    for r in range(num_epoch-1):
+        for i in range(iterations):
+            batch_index = np.random.choice(index, size=batch_size, replace=True)
+            batch_inputs = itemgetter(*batch_index)(inputs)
+            batch_words = itemgetter(*batch_index)(true_words)
+            batch_inputs_np = np.reshape(np.array(batch_inputs), (batch_size, model.vector_size))
+            batch_words_np = np.reshape(np.array(batch_words), (batch_size, model.vector_size))
+            sess.run(train_op, feed_dict={input_ph: batch_inputs_np, word_ph: batch_words_np})
+            cur_loss = sess.run(loss, feed_dict={input_ph: batch_inputs_np, word_ph: batch_words_np})
+            print("loss for batch {} is {}".format(i, cur_loss))
+
     saver.save(sess, SAVE_PATH)
+
 
 def get_prediction(model, nn_model, test_sentences, input_ph, word_ph):
     print('begin predicting')
@@ -156,27 +162,29 @@ def get_accuracy(model, true_words, pred_words, topn=10):
 
 
 def main():
-    model, sentences = get_word_embedding('yelp_academic_dataset_review.json', 0, 20000)
+    model, sentences = get_word_embedding('yelp_academic_dataset_review.json')
     train_fea, train_label = prepare_input_for_nn(model, sentences)
-
+    test_sentences = get_review_data('yelp_academic_dataset_review.json', 10000, 12000)
+    print("----------------------- DONE WITH GET REVIEW DATA -----------------------")
     input_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='train_input')
     word_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='train_label')
     training = tf.placeholder(tf.bool)
     nn_model = build_nn(input_ph)
     loss = get_loss(nn_model, word_ph)
-    train_op = get_optimizer(loss, 0.005)
+    train_op = get_optimizer(loss)
     saver = tf.train.Saver()
     # begin training
     init = tf.global_variables_initializer()
     with tf.Session() as sess:
         sess.run(init)
-        train_nn(model, sess, saver, input_ph, word_ph, loss, train_op, train_fea, train_label, 64)
-
-    test_sentences = get_review_data('yelp_academic_dataset_review.json', 20000, 22000)
+        train_nn(model, sess, saver, input_ph, word_ph, loss, train_op, train_fea, train_label, 32, num_epoch=2)
+    print("----------------------- DONE WITH TRAINING -----------------------")
     # t_input_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='test_input')
     # t_word_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='test_predicted_label')
     test_true_words, test_pred_words = get_prediction(model, nn_model, test_sentences, input_ph, word_ph)
+    print("----------------------- DONE WITH PREDICTION -----------------------")
     acc = get_accuracy(model, test_true_words, test_pred_words)
+    print("----------------------- DONE WITH GET ACCURACY -----------------------")
     print('accuracy = {}'.format(acc))
 
 if __name__ == '__main__':
