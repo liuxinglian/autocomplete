@@ -229,7 +229,7 @@ def get_accuracy(model, true_words, pred_words, topn=10):
 
 
 def main():
-    filename='partial_reviews(3).json'
+    filename='yelp_academic_dataset_review.json'
     model, sentences = get_word_embedding(filename,0, 100)
     #TODO: to change
     n_steps = 20
