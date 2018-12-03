@@ -21,20 +21,21 @@ def get_review_data(filename, start, end):
 
 # return word2Vec model that can extract word embedding
 def get_word_embedding(filename, start_train, end_train):
-
+    train_size = end_train - start_train
+    path = 'model_' + str(train_size) + '.txt'
     sentences = get_review_data(filename, start_train, end_train)
-    saved_model = my_file = Path('model.txt')
+    saved_model = my_file = Path(path)
 
     if not saved_model.is_file():
         
         model = Word2Vec(sentences, size=100, workers=8, sg=1, min_count=1)
         
         # save the trained model
-        model.wv.save_word2vec_format('model.txt')
-        saved_model = my_file = Path('model.txt')
+        model.wv.save_word2vec_format(path)
+        saved_model = my_file = Path(path)
 
     else:
-        model = word2vec.KeyedVectors.load_word2vec_format('model.txt', binary=False)
+        model = word2vec.KeyedVectors.load_word2vec_format(path, binary=False)
 
     learned_vocab = list(model.wv.vocab)
     # print(model['pizza'])
@@ -94,8 +95,11 @@ def get_optimizer(loss, lr=0.005):
     return tf.train.AdamOptimizer(learning_rate=lr).minimize(loss)
 
 
-def train_nn(model, sess, saver, input_ph, word_ph, loss, train_op, inputs, true_words, batch_size, num_epoch):
+def train_nn(model, sess, saver, input_ph, word_ph, loss, train_op, inputs, true_words, batch_size, training, num_epoch):
     print("begin training")
+    writer = tf.summary.FileWriter('./graphs', sess.graph)
+    loss_summary = tf.summary.scalar('loss', loss)
+    # merged = tf.summary.merge_all()
     index = np.arange(len(inputs))
     # change inputs and true_words vectors to np array
     ### inputs = np.reshape(np.array(inputs), (len(inputs), model.vector_size))
@@ -109,9 +113,12 @@ def train_nn(model, sess, saver, input_ph, word_ph, loss, train_op, inputs, true
         batch_words = itemgetter(*batch_index)(true_words)
         batch_inputs_np = np.reshape(np.array(batch_inputs), (batch_size, model.vector_size))
         batch_words_np = np.reshape(np.array(batch_words), (batch_size, model.vector_size))
-        sess.run(train_op, feed_dict={input_ph: batch_inputs_np, word_ph: batch_words_np})
-        cur_loss = sess.run(loss, feed_dict={input_ph: batch_inputs_np, word_ph: batch_words_np})
+        sess.run(train_op, feed_dict={input_ph: batch_inputs_np, word_ph: batch_words_np, training:False})
+        cur_loss = sess.run(loss, feed_dict={input_ph: batch_inputs_np, word_ph: batch_words_np, training:False})
         print("loss for batch {} is {}".format(i, cur_loss))
+        summary = sess.run(loss_summary, feed_dict={input_ph: batch_inputs_np, word_ph: batch_words_np, training:False})
+        writer.add_summary(summary, i)
+
 
     for r in range(num_epoch-1):
         for i in range(iterations):
@@ -120,14 +127,15 @@ def train_nn(model, sess, saver, input_ph, word_ph, loss, train_op, inputs, true
             batch_words = itemgetter(*batch_index)(true_words)
             batch_inputs_np = np.reshape(np.array(batch_inputs), (batch_size, model.vector_size))
             batch_words_np = np.reshape(np.array(batch_words), (batch_size, model.vector_size))
-            sess.run(train_op, feed_dict={input_ph: batch_inputs_np, word_ph: batch_words_np})
-            cur_loss = sess.run(loss, feed_dict={input_ph: batch_inputs_np, word_ph: batch_words_np})
+            sess.run(train_op, feed_dict={input_ph: batch_inputs_np, word_ph: batch_words_np, training:False})
+            cur_loss = sess.run(loss, feed_dict={input_ph: batch_inputs_np, word_ph: batch_words_np, training:False})
             print("loss for batch {} is {}".format(i, cur_loss))
 
+    
     saver.save(sess, SAVE_PATH)
 
 
-def get_prediction(model, nn_model, test_sentences, input_ph, word_ph):
+def get_prediction(model, nn_model, test_sentences, input_ph, word_ph, training_ph):
     print('begin predicting')
     test_inputs, test_true_words = prepare_input_for_nn(model, test_sentences)
     print('test true word len = {}'.format(len(test_true_words)))
@@ -136,7 +144,7 @@ def get_prediction(model, nn_model, test_sentences, input_ph, word_ph):
     with tf.Session() as sess:
         saver = tf.train.Saver()
         saver.restore(sess, SAVE_PATH)
-        test_pred_words = sess.run(nn_model, feed_dict={input_ph: test_inputs, word_ph: test_true_words})
+        test_pred_words = sess.run(nn_model, feed_dict={input_ph: test_inputs, word_ph: test_true_words, training_ph:False})
     print('test pred word len = {}'.format(len(test_pred_words)))
     return test_true_words, test_pred_words
 
@@ -176,11 +184,11 @@ def main(start_train, end_train, start_test, end_test, epoch):
     init = tf.global_variables_initializer()
     with tf.Session() as sess:
         sess.run(init)
-        train_nn(model, sess, saver, input_ph, word_ph, loss, train_op, train_fea, train_label, 32, num_epoch=epoch)
+        train_nn(model, sess, saver, input_ph, word_ph, loss, train_op, train_fea, train_label, 32, training, num_epoch=epoch)
     print("----------------------- DONE WITH TRAINING -----------------------")
     # t_input_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='test_input')
     # t_word_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='test_predicted_label')
-    test_true_words, test_pred_words = get_prediction(model, nn_model, test_sentences, input_ph, word_ph)
+    test_true_words, test_pred_words = get_prediction(model, nn_model, test_sentences, input_ph, word_ph, training)
     print("----------------------- DONE WITH PREDICTION -----------------------")
     acc = get_accuracy(model, test_true_words, test_pred_words)
     print("----------------------- DONE WITH GET ACCURACY -----------------------")
