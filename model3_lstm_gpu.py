@@ -250,18 +250,19 @@ def main():
     #embedded vector size
     n_inputs = model.vector_size
     #each vector is converted into dim=n_neurons
-    n_neurons = 256
+    n_neurons = 128
     batch_size= 256
     # do reset_graph()?
     cpu_or_gpu = 'gpu'
     cell_ty = 'gru'
+    if_bidirect = True
     
     input_ph = tf.placeholder(tf.float32, [None, n_steps, model.vector_size], name='train_input')
     word_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='train_label')
     training = tf.placeholder(tf.bool)
     seq_length_ph = tf.placeholder(tf.int32, [None])
     
-    nn_model = build_nn(cpu_or_gpu, cell_ty, training, input_ph, n_steps, n_inputs, n_neurons, seq_length_ph)
+    nn_model = build_nn(cpu_or_gpu, cell_ty, training, input_ph, n_steps, n_inputs, n_neurons, seq_length_ph, bidirection=if_bidirect)
     #state is the state of last time stamp (word) for EACH sentence
 
     loss = get_loss(nn_model, word_ph)
