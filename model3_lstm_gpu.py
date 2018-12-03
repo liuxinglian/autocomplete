@@ -156,9 +156,13 @@ def prepare_input_for_nn(model, sentences, n_steps=20, reverse=True, training=Tr
     return DataSet(inputs, true_words, seq_lengths)
 
 
-def build_nn(xpu, cell_type, training, input_ph, n_steps, n_inputs, n_neurons, seq_length_ph, out_size=100, keep_prob=0.5):
+def build_nn(xpu, cell_type, training, input_ph, n_steps, n_inputs, n_neurons, seq_length_ph, out_size=100, keep_prob=0.5, bidirection=False):
     cell = get_rnn_cell(typ=cell_type, platform=xpu, num_units = n_neurons)
-    outputs, state = tf.nn.dynamic_rnn(cell, input_ph, dtype=tf.float32, sequence_length=seq_length_ph)
+    if not bidirection:
+        outputs, state = tf.nn.dynamic_rnn(cell, input_ph, dtype=tf.float32, sequence_length=seq_length_ph)
+    else:
+        cell_bw = get_rnn_cell(typ=cell_type, platform=xpu, num_units = n_neurons)
+        outputs, state = tf.nn.bidirectional_dynamic_rnn(cell, cell_bw, input_ph, dtype=tf.float32, sequence_length=seq_length_ph)
     if cell_type=='lstm':
         output = tf.layers.dense(inputs=state[-1], units=out_size)
     else:
