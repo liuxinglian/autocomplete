@@ -1,6 +1,6 @@
 from pathlib import Path
 from operator import itemgetter
-import json
+import json, sys
 import numpy as np
 import nltk
 import tensorflow as tf
@@ -9,8 +9,7 @@ import gensim.models.keyedvectors as word2vec
 
 SAVE_PATH = './model/m.cpkt'
 
-
-def get_review_data(filename, start=0, end=10000):
+def get_review_data(filename, start, end):
     with open(filename) as f:
         data = f.readlines()
     reviews = [json.loads(x.strip()) for x in data]
@@ -21,9 +20,9 @@ def get_review_data(filename, start=0, end=10000):
 
 
 # return word2Vec model that can extract word embedding
-def get_word_embedding(filename):
+def get_word_embedding(filename, start_train, end_train):
 
-    sentences = get_review_data(filename)
+    sentences = get_review_data(filename, start_train, end_train)
     saved_model = my_file = Path('model.txt')
 
     if not saved_model.is_file():
@@ -161,10 +160,10 @@ def get_accuracy(model, true_words, pred_words, topn=10):
     return correct / len(true_words)
 
 
-def main():
-    model, sentences = get_word_embedding('yelp_academic_dataset_review.json')
+def main(start_train, end_train, start_test, end_test, epoch):
+    model, sentences = get_word_embedding('yelp_academic_dataset_review.json', start_train, end_train)
     train_fea, train_label = prepare_input_for_nn(model, sentences)
-    test_sentences = get_review_data('yelp_academic_dataset_review.json', 10000, 12000)
+    test_sentences = get_review_data('yelp_academic_dataset_review.json', start_test, end_test)
     print("----------------------- DONE WITH GET REVIEW DATA -----------------------")
     input_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='train_input')
     word_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='train_label')
@@ -177,7 +176,7 @@ def main():
     init = tf.global_variables_initializer()
     with tf.Session() as sess:
         sess.run(init)
-        train_nn(model, sess, saver, input_ph, word_ph, loss, train_op, train_fea, train_label, 32, num_epoch=2)
+        train_nn(model, sess, saver, input_ph, word_ph, loss, train_op, train_fea, train_label, 32, num_epoch=epoch)
     print("----------------------- DONE WITH TRAINING -----------------------")
     # t_input_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='test_input')
     # t_word_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='test_predicted_label')
@@ -188,4 +187,9 @@ def main():
     print('accuracy = {}'.format(acc))
 
 if __name__ == '__main__':
-    main()
+    start_train = int(sys.argv[1])
+    end_train = int(sys.argv[2])
+    start_test = int(sys.argv[3])
+    end_test = int(sys.argv[4])
+    epoch = int(sys.argv[5])
+    main(start_train, end_train, start_test, end_test, epoch)
