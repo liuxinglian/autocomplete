@@ -74,7 +74,7 @@ def get_rnn_cell(typ, platform, **kwargs):
     elif typ == 'gru' and platform == 'cpu':
         return tf.nn.rnn_cell.GRUCell(**kwargs)
     elif typ == 'gru' and platform == 'gpu':
-        return tf.contrib.cudnn_rnn.CudnnGRUSaveable(**kwargs)
+        return tf.contrib.cudnn_rnn.CudnnCompatibleGRUCell(**kwargs)
     else:
         print("Please choose a valid combination of type and platform")
         raise ValueError()
@@ -188,7 +188,7 @@ def train_nn(seq_length_ph,n_steps, n_inputs, training, model, sess, saver, inpu
             cur_loss = sess.run(loss, feed_dict={training: True, input_ph: X_batch, word_ph: y_batch, seq_length_ph: seq_length_batch})
             if i%1000==0:
                 print("loss for batch {} is {}".format(i, cur_loss))
-        # print(epoch, "Train accuracy:", acc_train, "Test accuracy:", acc_test)
+        print("loss for epoch {} is {}".format(r, cur_loss))
     saver.save(sess, SAVE_PATH)
 
 
@@ -229,13 +229,13 @@ def get_accuracy(model, true_words, pred_words, topn=10):
 
 
 def main():
-    filename='yelp_academic_dataset_review.json'
-    model, sentences = get_word_embedding(filename,0, 1000)
+    filename='partial_reviews(3).json'
+    model, sentences = get_word_embedding(filename,0, 100)
     #TODO: to change
     n_steps = 20
     reverse = True
     dataset = prepare_input_for_nn(model, sentences, n_steps, reverse)
-    test_sentences = get_review_data(filename, 1000, 1200)
+    test_sentences = get_review_data(filename, 100, 110)
 
     print("----------------------- DONE WITH GET REVIEW DATA -----------------------")
     
@@ -246,7 +246,7 @@ def main():
     n_neurons = 128
     # do reset_graph()?
     cpu_or_gpu = 'gpu'
-    cell_ty = 'lstm'
+    cell_ty = 'gru'
     
     input_ph = tf.placeholder(tf.float32, [None, n_steps, model.vector_size], name='train_input')
     word_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='train_label')
