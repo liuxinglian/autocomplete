@@ -244,6 +244,7 @@ def main():
     n_inputs = model.vector_size
     #each vector is converted into dim=n_neurons
     n_neurons = 128
+    batch_size=64
     # do reset_graph()?
     cpu_or_gpu = 'gpu'
     cell_ty = 'gru'
@@ -264,7 +265,7 @@ def main():
     
     with tf.Session() as sess:
         sess.run(init)
-        train_nn(seq_length_ph,n_steps, n_inputs, training, model, sess, saver, input_ph, word_ph, loss, train_op, dataset, 6, num_epoch=2)
+        train_nn(seq_length_ph,n_steps, n_inputs, training, model, sess, saver, input_ph, word_ph, loss, train_op, dataset, batch_size, num_epoch=2)
     print("----------------------- DONE WITH TRAINING -----------------------")
     # t_input_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='test_input')
     # t_word_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='test_predicted_label')
