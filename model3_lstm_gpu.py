@@ -247,7 +247,7 @@ def main():
     n_inputs = model.vector_size
     #each vector is converted into dim=n_neurons
     n_neurons = 128
-    batch_size=64
+    batch_size= 256
     # do reset_graph()?
     cpu_or_gpu = 'gpu'
     cell_ty = 'gru'
