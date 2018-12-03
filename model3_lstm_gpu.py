@@ -247,7 +247,7 @@ def main():
     batch_size=64
     # do reset_graph()?
     cpu_or_gpu = 'gpu'
-    cell_ty = 'lstm'
+    cell_ty = 'gru'
     
     input_ph = tf.placeholder(tf.float32, [None, n_steps, model.vector_size], name='train_input')
     word_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='train_label')
