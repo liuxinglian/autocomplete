@@ -162,7 +162,10 @@ def build_nn(xpu, cell_type, training, input_ph, n_steps, n_inputs, n_neurons, s
         outputs, state = tf.nn.dynamic_rnn(cell, input_ph, dtype=tf.float32, sequence_length=seq_length_ph)
     else:
         cell_bw = get_rnn_cell(typ=cell_type, platform=xpu, num_units = n_neurons)
-        outputs, state = tf.nn.bidirectional_dynamic_rnn(cell, cell_bw, input_ph, dtype=tf.float32, sequence_length=seq_length_ph)
+        outputs_fb, state_fb = tf.nn.bidirectional_dynamic_rnn(cell, cell_bw, input_ph, dtype=tf.float32, sequence_length=seq_length_ph)
+        #??????????? TODO: distinguish forward
+        #state_fb=[<tf.Tensor 'bidirectional_rnn/fw/fw/while/Exit_3:0' shape=(?, 128) dtype=float32>, <tf.Tensor 'bidirectional_rnn/bw/bw/while/Exit_3:0' shape=(?, 128) dtype=float32>]
+        state = state_fb[-1]
     if cell_type=='lstm':
         output = tf.layers.dense(inputs=state[-1], units=out_size)
     else:
