@@ -159,7 +159,7 @@ def prepare_input_for_nn(model, sentences, n_steps=20, reverse=True, training=Tr
 def build_nn(xpu, cell_type, training, input_ph, n_steps, n_inputs, n_neurons, seq_length_ph, out_size=100, keep_prob=0.5):
     cell = get_rnn_cell(typ=cell_type, platform=xpu, num_units = n_neurons)
     outputs, state = tf.nn.dynamic_rnn(cell, input_ph, dtype=tf.float32, sequence_length=seq_length_ph)
-    output = tf.layers.dense(inputs=state, units=out_size)
+    output = tf.layers.dense(inputs=state[-1], units=out_size)
     output = tf.cond(training, lambda: tf.nn.dropout(output, keep_prob), lambda:output)
     output = tf.layers.dense(inputs=output, units=out_size)
     return output
@@ -247,7 +247,7 @@ def main():
     batch_size=64
     # do reset_graph()?
     cpu_or_gpu = 'gpu'
-    cell_ty = 'gru'
+    cell_ty = 'lstm'
     
     input_ph = tf.placeholder(tf.float32, [None, n_steps, model.vector_size], name='train_input')
     word_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='train_label')
