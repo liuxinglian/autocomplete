@@ -230,12 +230,12 @@ def get_accuracy(model, true_words, pred_words, topn=10):
 
 def main():
     filename='yelp_academic_dataset_review.json'
-    model, sentences = get_word_embedding(filename,0, 100)
+    model, sentences = get_word_embedding(filename,0, 1000)
     #TODO: to change
     n_steps = 20
     reverse = True
     dataset = prepare_input_for_nn(model, sentences, n_steps, reverse)
-    test_sentences = get_review_data(filename, 100, 110)
+    test_sentences = get_review_data(filename, 1000, 1200)
 
     print("----------------------- DONE WITH GET REVIEW DATA -----------------------")
     
