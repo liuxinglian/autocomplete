@@ -82,8 +82,10 @@ def prepare_input_for_nn(model, sentences):
 
 
 def build_nn(input_ph, out_size=100):
-    hidden = tf.layers.dense(inputs=input_ph, units=256, activation=tf.nn.relu)
-    output = tf.layers.dense(inputs=hidden, units=out_size)
+    hidden1 = tf.layers.dense(inputs=input_ph, units=128, activation=tf.nn.relu)
+    hidden2 = tf.layers.dense(inputs=hidden1, units=256, activation=tf.nn.relu)
+    hidden3 = tf.layers.dense(inputs=hidden2, units=128, activation=tf.nn.relu)
+    output = tf.layers.dense(inputs=hidden3, units=out_size)
     return output
 
 def get_loss(pred_word, true_word):
@@ -184,13 +186,13 @@ def main(start_train, end_train, start_test, end_test, epoch):
     training = tf.placeholder(tf.bool)
     nn_model = build_nn(input_ph)
     loss = get_loss(nn_model, word_ph)
-    train_op = get_optimizer(loss)
+    train_op = get_optimizer(loss, 0.001)
     saver = tf.train.Saver()
     # begin training
     init = tf.global_variables_initializer()
     with tf.Session() as sess:
         sess.run(init)
-        train_nn(model, sess, saver, input_ph, word_ph, loss, train_op, train_fea, train_label, 32, training, num_epoch=epoch)
+        train_nn(model, sess, saver, input_ph, word_ph, loss, train_op, train_fea, train_label, 128, training, num_epoch=epoch)
     print("----------------------- DONE WITH TRAINING -----------------------")
     # t_input_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='test_input')
     # t_word_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='test_predicted_label')
