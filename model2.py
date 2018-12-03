@@ -1,6 +1,7 @@
 from pathlib import Path
 from operator import itemgetter
 import json, sys
+import shutil, os
 import numpy as np
 import nltk
 import tensorflow as tf
@@ -169,6 +170,11 @@ def get_accuracy(model, true_words, pred_words, topn=10):
 
 
 def main(start_train, end_train, start_test, end_test, epoch):
+    if len(sys.argv) == 7:
+        if os.path.isdir("model"):
+            shutil.rmtree('model')
+        if os.path.isdir("graphs"):
+            shutil.rmtree('graphs')
     model, sentences = get_word_embedding('yelp_academic_dataset_review.json', start_train, end_train)
     train_fea, train_label = prepare_input_for_nn(model, sentences)
     test_sentences = get_review_data('yelp_academic_dataset_review.json', start_test, end_test)
