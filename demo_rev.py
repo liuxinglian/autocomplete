@@ -56,7 +56,7 @@ with tf.Session() as sess:
         # model 2 only
         coeff = np.arange(20) + 1
         coeff = coeff.reshape(20,1)
-        cur_input = np.sum(coeff*d, axis=0)
+        cur_input = np.sum(coeff*cur_input, axis=0)
 
             
         nn_model = tf.get_default_graph().get_tensor_by_name("dense_3/BiasAdd:0")
