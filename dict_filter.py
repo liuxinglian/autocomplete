@@ -102,6 +102,8 @@ def pred_dict_filter(model, inputs, pred_word_vec, topn=1, cons=20):
     # This is a better version that uses Python's substring method
     for i in range(len(pred_words_list)):
         word = pred_words_list[i]
-        if inputs in word:
+        if len(inputs > word):
+            continue
+        if inputs == word[0:len(inputs)]:
             return word
     return ''
