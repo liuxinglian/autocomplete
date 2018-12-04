@@ -14,17 +14,21 @@ def get_review_data(filename, start, end):
     with open(filename) as f:
         data = f.readlines()
     reviews = [json.loads(x.strip()) for x in data]
-    # print(reviews[0]['text'])
-    sentences = [nltk.word_tokenize(reviews[i]['text'].lower()) for i in range(start, end)]
+    sentences = []
+    stars = []
+    # sentences = [nltk.word_tokenize(reviews[i]['text'].lower()) for i in range(start, end)]
+    for i in range(start, end):
+        sentences.append(nltk.word_tokenize(reviews[i]['text'].lower()))
+        stars.append(reviews[i]['stars'])
 
-    return sentences
+    return sentences, stars
 
 
 # return word2Vec model that can extract word embedding
 def get_word_embedding(filename, start_train, end_train):
     train_size = end_train - start_train
     path = 'model_' + str(train_size) + '.txt'
-    sentences = get_review_data(filename, start_train, end_train)
+    sentences, stars = get_review_data(filename, start_train, end_train)
     saved_model = my_file = Path(path)
 
     if not saved_model.is_file():
@@ -43,16 +47,18 @@ def get_word_embedding(filename, start_train, end_train):
     # print(list(learned_vocab))
     # print(model.most_similar(positive=[model['pizza']], topn=3))
 
-    return model, sentences
+    return model, sentences, stars
 
 
 # start predicting from the 6th word
-def prepare_input_for_nn(model, sentences):
+def prepare_input_for_nn(model, sentences, stars):
     # list of numpy array (each is a embedding representing the previous sequence)
     inputs = []
     # list of vector (true word representing by vector)
     true_words = []
-    for sentence in sentences:
+    for i in range(len(sentences)):
+        sentence = sentences[i]
+        star = np.array([stars[i]])
         if len(sentence) < 5:
             continue
 
@@ -70,7 +76,7 @@ def prepare_input_for_nn(model, sentences):
             cur_label = sentence[i]
 
             if cur_label in model.wv.vocab:
-                inputs.append(cur_input)
+                inputs.append(np.concatenate((cur_input, star), axis=0))
                 true_words.append(model[cur_label])
 
                 weighted_sum += model[cur_label] * (i+1)
@@ -82,15 +88,16 @@ def prepare_input_for_nn(model, sentences):
 
 
 def build_nn(input_ph, out_size=100):
-    hidden1 = tf.layers.dense(inputs=input_ph, units=128, activation=tf.nn.relu)
-    hidden2 = tf.layers.dense(inputs=hidden1, units=256, activation=tf.nn.relu)
-    hidden3 = tf.layers.dense(inputs=hidden2, units=128, activation=tf.nn.relu)
-    output = tf.layers.dense(inputs=hidden3, units=out_size)
+    # hidden1 = tf.layers.dense(inputs=input_ph, units=128, activation=tf.nn.relu)
+    hidden2 = tf.layers.dense(inputs=input_ph, units=256, activation=tf.nn.relu)
+    # hidden3 = tf.layers.dense(inputs=hidden2, units=128, activation=tf.nn.relu)
+    output = tf.layers.dense(inputs=hidden2, units=out_size)
     return output
 
 def get_loss(pred_word, true_word):
     # consine distance
     loss = tf.losses.cosine_distance(tf.nn.l2_normalize(pred_word, 0), tf.nn.l2_normalize(true_word, 0), dim=0)
+    # loss = tf.losses.softmax_cross_entropy(true_word, pred_word)
     return loss
 
 def get_optimizer(loss, lr=0.005):
@@ -114,11 +121,12 @@ def train_nn(model, sess, saver, input_ph, word_ph, loss, train_op, inputs, true
         batch_index = np.random.choice(index, size=batch_size, replace=True)
         batch_inputs = itemgetter(*batch_index)(inputs)
         batch_words = itemgetter(*batch_index)(true_words)
-        batch_inputs_np = np.reshape(np.array(batch_inputs), (batch_size, model.vector_size))
+        batch_inputs_np = np.reshape(np.array(batch_inputs), (batch_size, model.vector_size+1))
         batch_words_np = np.reshape(np.array(batch_words), (batch_size, model.vector_size))
         sess.run(train_op, feed_dict={input_ph: batch_inputs_np, word_ph: batch_words_np, training:False})
         cur_loss = sess.run(loss, feed_dict={input_ph: batch_inputs_np, word_ph: batch_words_np, training:False})
-        # print("loss for batch {} is {}".format(i, cur_loss))
+        if i % 1000 == 0:
+            print("loss for batch {} is {}".format(i, cur_loss))
         summary = sess.run(loss_summary, feed_dict={input_ph: batch_inputs_np, word_ph: batch_words_np, training:False})
         writer.add_summary(summary, i)
 
@@ -132,17 +140,18 @@ def train_nn(model, sess, saver, input_ph, word_ph, loss, train_op, inputs, true
             batch_words_np = np.reshape(np.array(batch_words), (batch_size, model.vector_size))
             sess.run(train_op, feed_dict={input_ph: batch_inputs_np, word_ph: batch_words_np, training:False})
             cur_loss = sess.run(loss, feed_dict={input_ph: batch_inputs_np, word_ph: batch_words_np, training:False})
-            # print("loss for batch {} is {}".format(i, cur_loss))
+            if i % 1000 == 0:
+                print("loss for batch {} is {}".format(i, cur_loss))
 
     
     saver.save(sess, SAVE_PATH)
 
 
-def get_prediction(model, nn_model, test_sentences, input_ph, word_ph, training_ph):
+def get_prediction(model, nn_model, test_sentences, test_stars, input_ph, word_ph, training_ph):
     print('begin predicting')
-    test_inputs, test_true_words = prepare_input_for_nn(model, test_sentences)
+    test_inputs, test_true_words = prepare_input_for_nn(model, test_sentences, test_stars)
     print('test true word len = {}'.format(len(test_true_words)))
-    test_inputs = np.reshape(np.array(test_inputs), (len(test_inputs), model.vector_size))
+    test_inputs = np.reshape(np.array(test_inputs), (len(test_inputs), model.vector_size+1))
     test_true_words = np.reshape(np.array(test_true_words), (len(test_true_words), model.vector_size))
     with tf.Session() as sess:
         saver = tf.train.Saver()
@@ -156,8 +165,7 @@ def get_accuracy(model, true_words, pred_words, topn=10):
     print('begin getting accuracy')
     correct = 0
     for i in range(len(true_words)):
-        if (i % 100 == 0):
-            print("calc acc : {} done".format(i))
+
         true_word_vec = true_words[i]
         pred_word_vec = pred_words[i]
 
@@ -178,11 +186,11 @@ def main(start_train, end_train, start_test, end_test, epoch):
             shutil.rmtree('model')
         if os.path.isdir("graphs"):
             shutil.rmtree('graphs')
-    model, sentences = get_word_embedding('yelp_academic_dataset_review.json', start_train, end_train)
-    train_fea, train_label = prepare_input_for_nn(model, sentences)
-    test_sentences = get_review_data('yelp_academic_dataset_review.json', start_test, end_test)
+    model, sentences, stars = get_word_embedding('yelp_academic_dataset_review.json', start_train, end_train)
+    train_fea, train_label = prepare_input_for_nn(model, sentences, stars)
+    test_sentences, test_stars = get_review_data('yelp_academic_dataset_review.json', start_test, end_test)
     print("----------------------- DONE WITH GET REVIEW DATA -----------------------")
-    input_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='train_input')
+    input_ph = tf.placeholder(tf.float32, [None, model.vector_size+1], name='train_input')
     word_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='train_label')
     training = tf.placeholder(tf.bool)
     nn_model = build_nn(input_ph)
@@ -193,11 +201,11 @@ def main(start_train, end_train, start_test, end_test, epoch):
     init = tf.global_variables_initializer()
     with tf.Session() as sess:
         sess.run(init)
-        train_nn(model, sess, saver, input_ph, word_ph, loss, train_op, train_fea, train_label, 128, training, num_epoch=epoch)
+        train_nn(model, sess, saver, input_ph, word_ph, loss, train_op, train_fea, train_label, 32, training, num_epoch=epoch)
     print("----------------------- DONE WITH TRAINING -----------------------")
     # t_input_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='test_input')
     # t_word_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='test_predicted_label')
-    test_true_words, test_pred_words = get_prediction(model, nn_model, test_sentences, input_ph, word_ph, training)
+    test_true_words, test_pred_words = get_prediction(model, nn_model, test_sentences, test_stars, input_ph, word_ph, training)
     print("----------------------- DONE WITH PREDICTION -----------------------")
     acc = get_accuracy(model, test_true_words, test_pred_words)
     print("----------------------- DONE WITH GET ACCURACY -----------------------")
