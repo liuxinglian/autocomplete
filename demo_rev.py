@@ -10,8 +10,7 @@ from dict_filter import pred_dict_filter
 from gensim.models import Word2Vec
 import gensim.models.keyedvectors as word2vec
 
-import warnings
-warnings.filterwarnings('ignore', '.*do not.*',)
+os.environ["TF_CPP_MIN_LOG_LEVEL"]="3"
 
 tf.reset_default_graph()
 
@@ -24,7 +23,7 @@ with tf.Session() as sess:
         rate = input("Please give a rating in the scale of 5:\n")
         rate = int(rate)
         assert(rate >= 1 and rate <= 5)
-        line = input("Please give some input\n")
+        line = input("Please give some input:\n")
         line = line.lower()
         sentence = line.split()
         sentence_embedding = []
