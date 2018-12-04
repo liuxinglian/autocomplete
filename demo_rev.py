@@ -55,6 +55,6 @@ with tf.Session() as sess:
         nn_model = tf.get_default_graph().get_tensor_by_name("dense_3/BiasAdd:0")
         input_ph = tf.get_default_graph().get_tensor_by_name("train_input:0")
            
-        pred = sess.run(nn_model, feed_dict={input_ph: cur_input, word_ph: np.zeros((1,100), dtype=np.float32), training_ph:False})        
+        pred = sess.run(nn_model, feed_dict={input_ph: cur_input})        
         pred_word = pred_dict_filter(word2vec_model, sentence[-1], pred[-1], topn=1, cons=20)
         print(pred_word)
