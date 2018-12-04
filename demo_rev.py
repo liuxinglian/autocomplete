@@ -25,6 +25,7 @@ with tf.Session() as sess:
         rate = int(rate)
         assert(rate >= 1 and rate <= 5)
         line = input("Please give some input\n")
+        line = line.lower()
         sentence = line.split()
         sentence_embedding = []
 
