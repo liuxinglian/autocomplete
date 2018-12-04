@@ -33,7 +33,7 @@ def get_esaved(model, true_words, pred_words, topn=1, cons=20):
         temp1 = model.most_similar([true_word_vec], [], 1)
         true_word = temp1[0][0]
         similar_list = model.most_similar([pred_word_vec], [], cons)
-        pred_words_list = [pair[0] for pair in temp2]
+        pred_words_list = [pair[0] for pair in similar_list]
         # build a trie tree to speed up the finding process
         t = trie.CharTrie()
         rt = {}
@@ -49,12 +49,12 @@ def get_esaved(model, true_words, pred_words, topn=1, cons=20):
             try:
                 m = list(t[inputs:])
                 m.sort()
-                for j in range(min(topn, len(m)))
+                for j in range(min(topn, len(m))):
                     if rt[m[j]] == true_word:
                         eSaved += es
                         flag = True
                         break
-            except KeyError():
+            except KeyError:
                 break
             if flag:
                 break
@@ -86,6 +86,6 @@ def dict_filter(model, inputs, pred_word_vec, topn=1, cons=20):
         m = list(t[inputs:])
         m.sort()
         pred_word = rt[m[0]]
-    except KeyError():
+    except KeyError:
         return ''
     return pred_word
