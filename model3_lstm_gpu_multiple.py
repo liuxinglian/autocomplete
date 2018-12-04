@@ -6,6 +6,7 @@ import nltk
 import tensorflow as tf
 from gensim.models import Word2Vec
 import gensim.models.keyedvectors as word2vec
+from dict_filter import get_esaved
 
 SAVE_PATH = './model/m.cpkt'
 
@@ -65,13 +66,13 @@ def get_rnn_cell(typ, platform, **kwargs):
     # get an rnn cell with the specified type on specific platform
     if typ == 'rnn' and platform == 'cpu':
         return tf.nn.rnn_cell.BasicRNNCell(**kwargs)
-    elif typ == 'rnn' and platform == 'gpu':
-        return tf.contrib.cudnn_rnn.CudnnRNNTanhSaveable(**kwargs)
+    #elif typ == 'rnn' and platform == 'gpu':
+        #return tf.contrib.cudnn_rnn.CudnnRNNTanhSaveable(**kwargs)
     elif typ == 'lstm' and platform == 'cpu':
         return tf.nn.rnn_cell.LSTMCell(**kwargs)
     elif typ == 'lstm' and platform == 'gpu':
         return tf.contrib.cudnn_rnn.CudnnCompatibleLSTMCell(**kwargs)
-    elif typ == 'lstmbn' and platform == 'cpu' or platform == 'gpu':
+    elif typ == 'lstmbn' and (platform == 'cpu' or platform == 'gpu'):
         return tf.contrib.rnn.LayerNormBasicLSTMCell(**kwargs)
     elif typ == 'gru' and platform == 'cpu':
         return tf.nn.rnn_cell.GRUCell(**kwargs)
@@ -115,7 +116,7 @@ def get_word_embedding(filename, start=0, end=1000):
     return model, sentences
 
 
-def prepare_input_for_nn(model, sentences, n_steps=20, reverse=True, training=True):
+def prepare_input_for_nn(model, sentences, n_steps, reverse=True, training=True):
     '''
     Prepare the input for the seq2seq model, with the pre-defined length and order.
     It is being said that reversed model leads to a better performance.
@@ -159,11 +160,43 @@ def prepare_input_for_nn(model, sentences, n_steps=20, reverse=True, training=Tr
 
 
 def build_nn(n_layers, xpu, cell_type, training, input_ph, n_steps, n_inputs, n_neurons, seq_length_ph, out_size=100, keep_prob=0.5, bidirection=False):
+    
     if n_layers ==1:
+        print("1 layer")
         cell = get_rnn_cell(typ=cell_type, platform=xpu, num_units = n_neurons)
     else:
+        print("many layers")
         stacked_cells = [get_rnn_cell(typ=cell_type, platform=xpu, num_units = n_neurons) for _ in range(n_layers)]
         cell =tf.contrib.rnn.MultiRNNCell(stacked_cells)
+    if not bidirection:
+        print("forward")
+        outputs, state = tf.nn.dynamic_rnn(cell, input_ph, dtype=tf.float32, sequence_length=seq_length_ph)
+    else:
+        print("bidirection")
+        cell_bw = get_rnn_cell(typ=cell_type, platform=xpu, num_units = n_neurons)
+        outputs_fb, state_fb = tf.nn.bidirectional_dynamic_rnn(cell, cell_bw, input_ph, dtype=tf.float32, sequence_length=seq_length_ph)
+        #state_fb=[<tf.Tensor 'bidirectional_rnn/fw/fw/while/Exit_3:0' shape=(?, 128) dtype=float32>, <tf.Tensor 'bidirectional_rnn/bw/bw/while/Exit_3:0' shape=(?, 128) dtype=float32>]
+        #state_fw h : outputs[-1][:,0:dim,:](last t)
+        #bw h: first t
+        #last time
+        state = state_fb[-1]
+        #first time
+        #state = state_fb[0]
+    
+    if n_layers !=1:
+        state = state[-1]
+    if cell_type=='lstm' or cell_type == "lstmbn":
+        print("LSTM")
+        state = state[-1]
+    
+    output = tf.layers.dense(inputs=state, units=out_size)
+        
+    output = tf.cond(training, lambda: tf.nn.dropout(output, keep_prob), lambda:output)
+    output = tf.layers.dense(inputs=output, units=out_size)
+    return output
+    
+    '''
+    cell = get_rnn_cell(typ=cell_type, platform=xpu, num_units = n_neurons)
     if not bidirection:
         outputs, state = tf.nn.dynamic_rnn(cell, input_ph, dtype=tf.float32, sequence_length=seq_length_ph)
     else:
@@ -172,17 +205,14 @@ def build_nn(n_layers, xpu, cell_type, training, input_ph, n_steps, n_inputs, n_
         #??????????? TODO: distinguish forward
         #state_fb=[<tf.Tensor 'bidirectional_rnn/fw/fw/while/Exit_3:0' shape=(?, 128) dtype=float32>, <tf.Tensor 'bidirectional_rnn/bw/bw/while/Exit_3:0' shape=(?, 128) dtype=float32>]
         state = state_fb[-1]
-    
-    if n_layers !=1:
-        state = state[-1]
     if cell_type=='lstm':
-        state = state[-1]
-    
-    output = tf.layers.dense(inputs=state, units=out_size)
-        
+        output = tf.layers.dense(inputs=state[-1], units=out_size)
+    else:
+        output = tf.layers.dense(inputs=state, units=out_size)
     output = tf.cond(training, lambda: tf.nn.dropout(output, keep_prob), lambda:output)
     output = tf.layers.dense(inputs=output, units=out_size)
     return output
+    '''
 
 def get_loss(pred_word, true_word):
     # consine distance
@@ -191,7 +221,7 @@ def get_loss(pred_word, true_word):
 
 def get_optimizer(loss, lr=0.005):
     # return a tf operation
-    return tf.train.AdamOptimizer(learning_rate=lr).minimize(loss)
+    return tf.train.AdamOptimizer(learning_rate=lr, beta1=0.9, beta2=0.99).minimize(loss)
 
 
 
@@ -212,7 +242,7 @@ def train_nn(seq_length_ph,n_steps, n_inputs, training, model, sess, saver, inpu
     saver.save(sess, SAVE_PATH)
 
 
-def get_prediction(seq_length_ph, training, model, nn_model, test_sentences, input_ph, word_ph, n_steps=20,reverse=True):
+def get_prediction(seq_length_ph, training, model, nn_model, test_sentences, input_ph, word_ph, n_steps,reverse=True):
     print('begin predicting')
     dataset = prepare_input_for_nn(model, test_sentences, n_steps, reverse, training = False)
     X_batch, y_batch, seq_length_batch = dataset.data, dataset.label, dataset.seq_length
@@ -250,14 +280,14 @@ def get_accuracy(model, true_words, pred_words, topn=10):
 
 def main():
     #filename='yelp_academic_dataset_review.json'
-    filename='partial_reviews(3).json'
+    filename='partial_reviews.json'
 
     model, sentences = get_word_embedding(filename,0, 800)
     #TODO: to change
-    n_steps = 20
+    n_steps = 64
     reverse = True
     dataset = prepare_input_for_nn(model, sentences, n_steps, reverse)
-    test_sentences = get_review_data(filename, 800, 999)
+    test_sentences = get_review_data(filename, 800, 1000)
 
     print("----------------------- DONE WITH GET REVIEW DATA -----------------------")
     
@@ -268,8 +298,8 @@ def main():
     batch_size= 64
     # do reset_graph()?
     cpu_or_gpu = 'gpu'
-    cell_ty = 'lstm'
-    n_layers = 3
+    cell_ty = 'gru'
+    n_layers = 1
     if_bidirect = False
     
     input_ph = tf.placeholder(tf.float32, [None, n_steps, model.vector_size], name='train_input')
@@ -292,11 +322,14 @@ def main():
     print("----------------------- DONE WITH TRAINING -----------------------")
     # t_input_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='test_input')
     # t_word_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='test_predicted_label')
-    test_true_words, test_pred_words = get_prediction(seq_length_ph, training, model, nn_model, test_sentences, input_ph, word_ph)
+    test_true_words, test_pred_words = get_prediction(seq_length_ph, training, model, nn_model, test_sentences, input_ph, word_ph, n_steps)
     print("----------------------- DONE WITH PREDICTION -----------------------")
-    acc = get_accuracy(model, test_true_words, test_pred_words)
-    print("----------------------- DONE WITH GET ACCURACY -----------------------")
-    print('accuracy = {}'.format(acc))
+    #acc = get_accuracy(model, test_true_words, test_pred_words)
+    #print("----------------------- DONE WITH GET ACCURACY -----------------------")
+    #print('accuracy = {}'.format(acc))
+    eSaved = get_esaved(model, test_true_words, test_pred_words, topn=1, cons=20)
+    print("----------------------- DONE WITH GET ESAVED -----------------------")
+    print('eSaved = {}'.format(eSaved))
 
 if __name__ == '__main__':
     main()
