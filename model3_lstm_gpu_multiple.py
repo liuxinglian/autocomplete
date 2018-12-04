@@ -71,6 +71,8 @@ def get_rnn_cell(typ, platform, **kwargs):
         return tf.nn.rnn_cell.LSTMCell(**kwargs)
     elif typ == 'lstm' and platform == 'gpu':
         return tf.contrib.cudnn_rnn.CudnnCompatibleLSTMCell(**kwargs)
+    elif typ == 'lstmbn' and platform == 'cpu' or platform == 'gpu':
+        return tf.contrib.rnn.LayerNormBasicLSTMCell(**kwargs)
     elif typ == 'gru' and platform == 'cpu':
         return tf.nn.rnn_cell.GRUCell(**kwargs)
     elif typ == 'gru' and platform == 'gpu':
