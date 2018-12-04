@@ -186,7 +186,7 @@ def get_loss(pred_word, true_word):
     return loss
 
 
-def get_optimizer(loss, lr=0.005):
+def get_optimizer(loss, lr=0.003):
     # return a tf operation
     return tf.train.AdamOptimizer(learning_rate=lr, beta1=0.9, beta2=0.99).minimize(loss)
 
@@ -245,16 +245,16 @@ def get_accuracy(model, true_words, pred_words, topn=10):
 
 
 def main():
-    #filename='yelp_academic_dataset_review.json'
-    filename='partial_reviews.json'
+    filename='yelp_academic_dataset_review.json'
+    #filename='partial_reviews.json'
 
-    model, sentences, stars = get_word_embedding(filename,0, 800)
+    model, sentences, stars = get_word_embedding(filename,0, 10000)
     print(stars)
     #TODO: to change
-    n_steps = 64
+    n_steps = 50
     reverse = True
     dataset = prepare_input_for_nn(model, sentences, n_steps,stars,  reverse)
-    test_sentences, stars = get_review_data(filename, 801, 1000)
+    test_sentences, stars = get_review_data(filename, 100001, 102000)
 
     print("----------------------- DONE WITH GET REVIEW DATA -----------------------")
     
@@ -262,12 +262,12 @@ def main():
     n_inputs = model.vector_size
     #each vector is converted into dim=n_neurons
     n_neurons = 128
-    batch_size= 4
+    batch_size= 64
     # do reset_graph()?
     cpu_or_gpu = 'gpu'
     cell_ty = 'gru'
-    n_layers = 1
-    if_bidirect = False
+    n_layers = 3
+    if_bidirect = True
     
     input_ph = tf.placeholder(tf.float32, [None, n_steps, model.vector_size], name='train_input')
     stars_ph = tf.placeholder(tf.float32, [None], name='train_star_input')
@@ -286,7 +286,7 @@ def main():
     
     with tf.Session() as sess:
         sess.run(init)
-        train_nn(seq_length_ph,n_steps, n_inputs, training, model, sess, saver, stars_ph,input_ph, word_ph, loss, train_op, dataset, batch_size, num_epoch=2)
+        train_nn(seq_length_ph,n_steps, n_inputs, training, model, sess, saver, stars_ph,input_ph, word_ph, loss, train_op, dataset, batch_size, num_epoch=3)
     print("----------------------- DONE WITH TRAINING -----------------------")
     # t_input_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='test_input')
     # t_word_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='test_predicted_label')
