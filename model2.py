@@ -51,37 +51,70 @@ def get_word_embedding(filename, start_train, end_train):
 
 
 # start predicting from the 6th word
-def prepare_input_for_nn(model, sentences, stars):
+def prepare_input_for_nn(model, sentences, stars, reverse=False):
     # list of numpy array (each is a embedding representing the previous sequence)
     inputs = []
     # list of vector (true word representing by vector)
     true_words = []
-    for i in range(len(sentences)):
-        sentence = sentences[i]
-        star = np.array([stars[i]])
-        if len(sentence) < 5:
-            continue
+    if not reverse:
+        for i in range(len(sentences)):
+            sentence = sentences[i]
+            star = np.array([stars[i]])
+            if len(sentence) < 5:
+                continue
 
-        # unnormalized one doesn't divide by the total weight
-        weighted_sum = np.zeros(model.vector_size)
-        total_weight = 0
-        for i in range(5):
-            total_weight += i+1
-            if sentence[i] in model.wv.vocab:
-                weighted_sum += model[sentence[i]] * (i+1)
+            # unnormalized one doesn't divide by the total weight
+            weighted_sum = np.zeros(model.vector_size)
+            total_weight = 0
+            for i in range(5):
+                total_weight += i+1
+                if sentence[i] in model.wv.vocab:
+                    weighted_sum += model[sentence[i]] * (i+1)
 
-        # begin prepare input and label
-        for i in range(5, len(sentence)):
-            cur_input = weighted_sum / total_weight
-            cur_label = sentence[i]
+            # begin prepare input and label
+            for i in range(5, len(sentence)):
+                cur_input = weighted_sum / total_weight
+                cur_label = sentence[i]
 
-            if cur_label in model.wv.vocab:
-                inputs.append(np.concatenate((cur_input, star), axis=0))
-                true_words.append(model[cur_label])
+                if cur_label in model.wv.vocab:
+                    inputs.append(cur_input)
+                    true_words.append(model[cur_label])
 
-                weighted_sum += model[cur_label] * (i+1)
+                    weighted_sum += model[cur_label] * (i+1)
 
-            total_weight += i+1
+                total_weight += i+1
+
+    else:
+        max_weight = len(sentences)
+        for i in range(len(sentences)):
+            sentence = sentences[i]
+            star = np.array([stars[i]])
+            if len(sentence) < 5:
+                continue
+
+            # unnormalized one doesn't divide by the total weight
+            weighted_sum = np.zeros(model.vector_size)
+            total_weight = 0
+            for i in range(5):
+                cur_weight = max_weight-i-1
+                total_weight += cur_weight
+                if sentence[i] in model.wv.vocab:
+                    weighted_sum += model[sentence[i]] * (cur_weight)
+
+            # begin prepare input and label
+            for i in range(5, len(sentence)):
+                cur_weight = max_weight-i-1
+                cur_input = weighted_sum / total_weight
+                cur_label = sentence[i]
+
+                if cur_label in model.wv.vocab:
+                    inputs.append(cur_input)
+                    true_words.append(model[cur_label])
+
+                    weighted_sum += model[cur_label] * cur_weight
+
+                total_weight += cur_weight
+
             
 
     return inputs, true_words
@@ -121,7 +154,7 @@ def train_nn(model, sess, saver, input_ph, word_ph, loss, train_op, inputs, true
         batch_index = np.random.choice(index, size=batch_size, replace=True)
         batch_inputs = itemgetter(*batch_index)(inputs)
         batch_words = itemgetter(*batch_index)(true_words)
-        batch_inputs_np = np.reshape(np.array(batch_inputs), (batch_size, model.vector_size+1))
+        batch_inputs_np = np.reshape(np.array(batch_inputs), (batch_size, model.vector_size))
         batch_words_np = np.reshape(np.array(batch_words), (batch_size, model.vector_size))
         sess.run(train_op, feed_dict={input_ph: batch_inputs_np, word_ph: batch_words_np, training:False})
         cur_loss = sess.run(loss, feed_dict={input_ph: batch_inputs_np, word_ph: batch_words_np, training:False})
@@ -136,7 +169,7 @@ def train_nn(model, sess, saver, input_ph, word_ph, loss, train_op, inputs, true
             batch_index = np.random.choice(index, size=batch_size, replace=True)
             batch_inputs = itemgetter(*batch_index)(inputs)
             batch_words = itemgetter(*batch_index)(true_words)
-            batch_inputs_np = np.reshape(np.array(batch_inputs), (batch_size, model.vector_size+1))
+            batch_inputs_np = np.reshape(np.array(batch_inputs), (batch_size, model.vector_size))
             batch_words_np = np.reshape(np.array(batch_words), (batch_size, model.vector_size))
             sess.run(train_op, feed_dict={input_ph: batch_inputs_np, word_ph: batch_words_np, training:False})
             cur_loss = sess.run(loss, feed_dict={input_ph: batch_inputs_np, word_ph: batch_words_np, training:False})
@@ -149,9 +182,9 @@ def train_nn(model, sess, saver, input_ph, word_ph, loss, train_op, inputs, true
 
 def get_prediction(model, nn_model, test_sentences, test_stars, input_ph, word_ph, training_ph):
     print('begin predicting')
-    test_inputs, test_true_words = prepare_input_for_nn(model, test_sentences, test_stars)
+    test_inputs, test_true_words = prepare_input_for_nn(model, test_sentences, test_stars, reverse=False)
     print('test true word len = {}'.format(len(test_true_words)))
-    test_inputs = np.reshape(np.array(test_inputs), (len(test_inputs), model.vector_size+1))
+    test_inputs = np.reshape(np.array(test_inputs), (len(test_inputs), model.vector_size))
     test_true_words = np.reshape(np.array(test_true_words), (len(test_true_words), model.vector_size))
     with tf.Session() as sess:
         saver = tf.train.Saver()
@@ -177,9 +210,6 @@ def get_accuracy(model, true_words, pred_words, topn=10):
         if bool(true_words_set & pred_words_set):
             correct += 1
 
-        if i % 1000 == 0:
-            print('done calculating acc {}'.format(i))
-
     return correct / len(true_words)
 
 
@@ -190,15 +220,15 @@ def main(start_train, end_train, start_test, end_test, epoch):
         if os.path.isdir("graphs"):
             shutil.rmtree('graphs')
     model, sentences, stars = get_word_embedding('yelp_academic_dataset_review.json', start_train, end_train)
-    train_fea, train_label = prepare_input_for_nn(model, sentences, stars)
+    train_fea, train_label = prepare_input_for_nn(model, sentences, stars, reverse=False)
     test_sentences, test_stars = get_review_data('yelp_academic_dataset_review.json', start_test, end_test)
     print("----------------------- DONE WITH GET REVIEW DATA -----------------------")
-    input_ph = tf.placeholder(tf.float32, [None, model.vector_size+1], name='train_input')
+    input_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='train_input')
     word_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='train_label')
     training = tf.placeholder(tf.bool)
     nn_model = build_nn(input_ph)
     loss = get_loss(nn_model, word_ph)
-    train_op = get_optimizer(loss, 0.002)
+    train_op = get_optimizer(loss, 0.001)
     saver = tf.train.Saver()
     # begin training
     init = tf.global_variables_initializer()
