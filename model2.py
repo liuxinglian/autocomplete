@@ -136,7 +136,7 @@ def train_nn(model, sess, saver, input_ph, word_ph, loss, train_op, inputs, true
             batch_index = np.random.choice(index, size=batch_size, replace=True)
             batch_inputs = itemgetter(*batch_index)(inputs)
             batch_words = itemgetter(*batch_index)(true_words)
-            batch_inputs_np = np.reshape(np.array(batch_inputs), (batch_size, model.vector_size))
+            batch_inputs_np = np.reshape(np.array(batch_inputs), (batch_size, model.vector_size+1))
             batch_words_np = np.reshape(np.array(batch_words), (batch_size, model.vector_size))
             sess.run(train_op, feed_dict={input_ph: batch_inputs_np, word_ph: batch_words_np, training:False})
             cur_loss = sess.run(loss, feed_dict={input_ph: batch_inputs_np, word_ph: batch_words_np, training:False})
