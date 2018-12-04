@@ -78,10 +78,10 @@ def pred_dict_filter(model, inputs, pred_word_vec, topn=1, cons=20):
         topn: the number of nearest neighbours to be evaluated as correct, default to 1
         cons: the number of nearest neighbours to be considered, default to 20
     Output:
-    The predicted word.
+        The predicted word.
     '''
-    similar_list = model.most_similar([pred_word_vec.T], [], cons)
-    pred_words_list = [pair[0] for pair in temp2]
+    similar_list = model.most_similar([pred_word_vec], [], cons)
+    pred_words_list = [pair[0] for pair in similar_list]
     '''
     # This is a deprecated version that use trie tree to do the whole process
     # build a trie tree to speed up the finding process
@@ -102,7 +102,7 @@ def pred_dict_filter(model, inputs, pred_word_vec, topn=1, cons=20):
     # This is a better version that uses Python's substring method
     for i in range(len(pred_words_list)):
         word = pred_words_list[i]
-        if len(inputs > word):
+        if len(inputs) > len(word):
             continue
         if inputs == word[0:len(inputs)]:
             return word
