@@ -80,7 +80,7 @@ def pred_dict_filter(model, inputs, pred_word_vec, topn=1, cons=20):
     Output:
     The predicted word.
     '''
-    similar_list = model.most_similar([pred_word_vec], [], cons)
+    similar_list = model.most_similar([pred_word_vec.T], [], cons)
     pred_words_list = [pair[0] for pair in temp2]
     '''
     # This is a deprecated version that use trie tree to do the whole process
