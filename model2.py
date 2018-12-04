@@ -82,10 +82,10 @@ def prepare_input_for_nn(model, sentences):
 
 
 def build_nn(input_ph, out_size=100):
-    hidden1 = tf.layers.dense(inputs=input_ph, units=128, activation=tf.nn.relu)
-    hidden2 = tf.layers.dense(inputs=hidden1, units=256, activation=tf.nn.relu)
-    hidden3 = tf.layers.dense(inputs=hidden2, units=128, activation=tf.nn.relu)
-    output = tf.layers.dense(inputs=hidden3, units=out_size)
+    # hidden1 = tf.layers.dense(inputs=input_ph, units=128, activation=tf.nn.relu)
+    hidden2 = tf.layers.dense(inputs=input_ph, units=256, activation=tf.nn.relu)
+    # hidden3 = tf.layers.dense(inputs=hidden2, units=128, activation=tf.nn.relu)
+    output = tf.layers.dense(inputs=hidden2, units=out_size)
     return output
 
 def get_loss(pred_word, true_word):
@@ -119,6 +119,8 @@ def train_nn(model, sess, saver, input_ph, word_ph, loss, train_op, inputs, true
         sess.run(train_op, feed_dict={input_ph: batch_inputs_np, word_ph: batch_words_np, training:False})
         cur_loss = sess.run(loss, feed_dict={input_ph: batch_inputs_np, word_ph: batch_words_np, training:False})
         # print("loss for batch {} is {}".format(i, cur_loss))
+        if i % 1000 == 0:
+            print("loss for batch {} is {}".format(i, cur_loss))
         summary = sess.run(loss_summary, feed_dict={input_ph: batch_inputs_np, word_ph: batch_words_np, training:False})
         writer.add_summary(summary, i)
 
@@ -193,7 +195,7 @@ def main(start_train, end_train, start_test, end_test, epoch):
     init = tf.global_variables_initializer()
     with tf.Session() as sess:
         sess.run(init)
-        train_nn(model, sess, saver, input_ph, word_ph, loss, train_op, train_fea, train_label, 128, training, num_epoch=epoch)
+        train_nn(model, sess, saver, input_ph, word_ph, loss, train_op, train_fea, train_label, 32, training, num_epoch=epoch)
     print("----------------------- DONE WITH TRAINING -----------------------")
     # t_input_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='test_input')
     # t_word_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='test_predicted_label')
