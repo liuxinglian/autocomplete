@@ -4,9 +4,10 @@ import json
 import numpy as np
 import nltk
 import tensorflow as tf
-from gensim.models import Word2Vec
 import gensim.models.keyedvectors as word2vec
+from gensim.models import Word2Vec
 from dict_filter import get_esaved
+from model2 import get_review_data, get_word_embedding
 
 SAVE_PATH = './model/m.cpkt'
 
@@ -19,11 +20,13 @@ class DataSet(object):
                  data,
                  label,
                  seq_length,
+                 stars,
                  training=True):
         self.data = data
         self.label = label
         self.seq_length = seq_length
         self.training = training
+        self.stars = stars
         self._epochs_completed = 0
         self._index_in_epoch = 0
         self._num_data = data.shape[0]
@@ -33,8 +36,7 @@ class DataSet(object):
         start = self._index_in_epoch
         #print(self.training)
         if self.training == False:
-            #print("triggered")
-            return self.data, self.label, self.seq_length
+            return self.data, self.label, self.seq_length, self.stars
         if start == 0 and self._epochs_completed == 0 and shuffle:
             np.random.shuffle(self._curr_order)
         if start + batch_size > self._num_data:
@@ -44,6 +46,7 @@ class DataSet(object):
             X_batch_feeded = self.data[self._curr_order[self._index_in_epoch:]]
             y_batch_feeded = self.label[self._curr_order[self._index_in_epoch:]]
             seq_length_feeded = self.seq_length[self._curr_order[self._index_in_epoch:]]
+            stars_feeded = self.stars[self._curr_order[self._index_in_epoch:]]
 
             if shuffle:
                 np.random.shuffle(self._curr_order)
@@ -51,23 +54,26 @@ class DataSet(object):
             X_batch_rest = self.data[self._curr_order[:num_rest]]
             y_batch_rest = self.label[self._curr_order[:num_rest]]
             seq_length_rest = self.seq_length[self._curr_order[:num_rest]]
+            stars_rest = self.seq_length[self._curr_order[:num_rest]]
             self._index_in_epoch = num_rest
             X_batch = np.concatenate((X_batch_feeded, X_batch_rest), axis=0)
             y_batch = np.concatenate((y_batch_feeded, y_batch_rest), axis=0)
             seq_length_batch = np.concatenate((seq_length_feeded, seq_length_rest), axis=0)
+            stars_batch = np.concatenate((stars_feeded, stars_rest), axis=0)
         else:
             X_batch = self.data[self._curr_order[self._index_in_epoch:self._index_in_epoch + batch_size]]
             y_batch = self.label[self._curr_order[self._index_in_epoch:self._index_in_epoch + batch_size]]
             seq_length_batch = self.seq_length[self._curr_order[self._index_in_epoch:self._index_in_epoch + batch_size]]
+            stars_batch = self.stars_batch[self._curr_order[self._index_in_epoch:self._index_in_epoch + batch_size]]
             self._index_in_epoch += batch_size
-        return X_batch, y_batch, seq_length_batch
+        return X_batch, y_batch, seq_length_batch, stars_batch
 
 def get_rnn_cell(typ, platform, **kwargs):
     # get an rnn cell with the specified type on specific platform
     if typ == 'rnn' and platform == 'cpu':
         return tf.nn.rnn_cell.BasicRNNCell(**kwargs)
-    #elif typ == 'rnn' and platform == 'gpu':
-        #return tf.contrib.cudnn_rnn.CudnnRNNTanhSaveable(**kwargs)
+    elif typ == 'rnn' and platform == 'gpu':
+        return tf.nn.rnn_cell.RNNCell(**kwargs)
     elif typ == 'lstm' and platform == 'cpu':
         return tf.nn.rnn_cell.LSTMCell(**kwargs)
     elif typ == 'lstm' and platform == 'gpu':
@@ -82,41 +88,8 @@ def get_rnn_cell(typ, platform, **kwargs):
         print("Please choose a valid combination of type and platform")
         raise ValueError()
 
-def get_review_data(filename, start, end):
-    with open(filename) as f:
-        data = f.readlines()
-    reviews = [json.loads(x.strip()) for x in data]
-    # print(reviews[0]['text'])
-    sentences = [nltk.word_tokenize(reviews[i]['text'].lower()) for i in range(start, end)]
 
-    return sentences
-
-# return word2Vec model that can extract word embedding
-def get_word_embedding(filename, start=0, end=1000):
-
-    sentences = get_review_data(filename, start, end)
-    saved_model = my_file = Path('model.txt')
-
-    if not saved_model.is_file():
-        
-        model = Word2Vec(sentences, size=100, workers=8, sg=1, min_count=1)
-        
-        # save the trained model
-        model.wv.save_word2vec_format('model.txt')
-        saved_model = my_file = Path('model.txt')
-
-    else:
-        model = word2vec.KeyedVectors.load_word2vec_format('model.txt', binary=False)
-
-    learned_vocab = list(model.wv.vocab)
-    # print(model['pizza'])
-    # print(list(learned_vocab))
-    # print(model.most_similar(positive=[model['pizza']], topn=3))
-
-    return model, sentences
-
-
-def prepare_input_for_nn(model, sentences, n_steps, reverse=True, training=True):
+def prepare_input_for_nn(model, sentences, n_steps, stars, reverse=True, training=True):
     '''
     Prepare the input for the seq2seq model, with the pre-defined length and order.
     It is being said that reversed model leads to a better performance.
@@ -127,8 +100,12 @@ def prepare_input_for_nn(model, sentences, n_steps, reverse=True, training=True)
     # list of vector (true word representing by vector)
     true_words = []
     # list of seq_lengths (the length of each sequence)
-    seq_lengths=[]
-    for sentence in sentences:
+    seq_lengths = []
+    # list of stars (the stars of each review)
+    stars_list = []
+    for k in range(len(sentences)):
+        sentence = sentences[k]
+        star = stars[k]
         sentence_embedding = []
         # get rid of reviews with smaller than 5 words
         if len(sentence) < 5:
@@ -150,13 +127,15 @@ def prepare_input_for_nn(model, sentences, n_steps, reverse=True, training=True)
                 pad = np.zeros((pad_num, model.vector_size))
                 cur_input = np.concatenate((pad, cur_input), axis=0) 
             if reverse:
-                cur_input=np.flip(cur_input,0)
+                cur_input = np.flip(cur_input,0)
             if cur_label in model.wv.vocab:
                 inputs.append(cur_input)
                 true_words.append(model[cur_label])
                 seq_lengths.append(seq_length)
+                stars_list.append(star)
     inputs, true_words, seq_lengths = np.array(inputs, dtype=np.float32), np.array(true_words), np.array(seq_lengths)
-    return DataSet(inputs, true_words, seq_lengths)
+    stars_list = np.array(stars_list, dtype=np.int)
+    return DataSet(inputs, true_words, seq_lengths, stars_list)
 
 
 def build_nn(n_layers, xpu, cell_type, training, input_ph, n_steps, n_inputs, n_neurons, seq_length_ph, out_size=100, keep_prob=0.5, bidirection=False):
@@ -175,13 +154,13 @@ def build_nn(n_layers, xpu, cell_type, training, input_ph, n_steps, n_inputs, n_
         print("bidirection")
         cell_bw = get_rnn_cell(typ=cell_type, platform=xpu, num_units = n_neurons)
         outputs_fb, state_fb = tf.nn.bidirectional_dynamic_rnn(cell, cell_bw, input_ph, dtype=tf.float32, sequence_length=seq_length_ph)
-        #state_fb=[<tf.Tensor 'bidirectional_rnn/fw/fw/while/Exit_3:0' shape=(?, 128) dtype=float32>, <tf.Tensor 'bidirectional_rnn/bw/bw/while/Exit_3:0' shape=(?, 128) dtype=float32>]
-        #state_fw h : outputs[-1][:,0:dim,:](last t)
-        #bw h: first t
-        #last time
+        # state_fb=[<tf.Tensor 'bidirectional_rnn/fw/fw/while/Exit_3:0' shape=(?, 128) dtype=float32>, <tf.Tensor 'bidirectional_rnn/bw/bw/while/Exit_3:0' shape=(?, 128) dtype=float32>]
+        # state_fw h : outputs[-1][:,0:dim,:](last t)
+        # bw h: first t
+        # last time
         state = state_fb[-1]
-        #first time
-        #state = state_fb[0]
+        # first time
+        # state = state_fb[0]
     
     if n_layers !=1:
         state = state[-1]
@@ -202,8 +181,8 @@ def build_nn(n_layers, xpu, cell_type, training, input_ph, n_steps, n_inputs, n_
     else:
         cell_bw = get_rnn_cell(typ=cell_type, platform=xpu, num_units = n_neurons)
         outputs_fb, state_fb = tf.nn.bidirectional_dynamic_rnn(cell, cell_bw, input_ph, dtype=tf.float32, sequence_length=seq_length_ph)
-        #??????????? TODO: distinguish forward
-        #state_fb=[<tf.Tensor 'bidirectional_rnn/fw/fw/while/Exit_3:0' shape=(?, 128) dtype=float32>, <tf.Tensor 'bidirectional_rnn/bw/bw/while/Exit_3:0' shape=(?, 128) dtype=float32>]
+        # ??????????? TODO: distinguish forward
+        # state_fb=[<tf.Tensor 'bidirectional_rnn/fw/fw/while/Exit_3:0' shape=(?, 128) dtype=float32>, <tf.Tensor 'bidirectional_rnn/bw/bw/while/Exit_3:0' shape=(?, 128) dtype=float32>]
         state = state_fb[-1]
     if cell_type=='lstm':
         output = tf.layers.dense(inputs=state[-1], units=out_size)
@@ -231,26 +210,26 @@ def train_nn(seq_length_ph,n_steps, n_inputs, training, model, sess, saver, inpu
     for r in range(num_epoch):
         for i in range(dataset._num_data // batch_size + 1):
             X_batch, y_batch, seq_length_batch = dataset.next_batch(batch_size)
-            #?????
-            #print(X_batch.shape)
+            # ?????
+            # print(X_batch.shape)
             X_batch = X_batch.reshape((-1, n_steps, n_inputs))
             sess.run(train_op, feed_dict={training: True, input_ph: X_batch, word_ph: y_batch, seq_length_ph: seq_length_batch})
             cur_loss = sess.run(loss, feed_dict={training: True, input_ph: X_batch, word_ph: y_batch, seq_length_ph: seq_length_batch})
-            if i%1000==0:
+            if i % 1000==0:
                 print("loss for batch {} is {}".format(i, cur_loss))
         print("loss for epoch {} is {}".format(r, cur_loss))
     saver.save(sess, SAVE_PATH)
 
 
-def get_prediction(seq_length_ph, training, model, nn_model, test_sentences, input_ph, word_ph, n_steps,reverse=True):
+def get_prediction(seq_length_ph, training, model, nn_model, test_sentences, stars, input_ph, word_ph, n_steps, reverse=True):
     print('begin predicting')
-    dataset = prepare_input_for_nn(model, test_sentences, n_steps, reverse, training = False)
+    dataset = prepare_input_for_nn(model, test_sentences, n_steps, stars, reverse, training = False)
     X_batch, y_batch, seq_length_batch = dataset.data, dataset.label, dataset.seq_length
     test_inputs = X_batch
     test_true_words = y_batch
     print('test true word len = {}'.format(len(test_true_words)))
-    #test_inputs = np.reshape(np.array(test_inputs), (len(test_inputs), model.vector_size))
-    #test_true_words = np.reshape(np.array(test_true_words), (len(test_true_words), model.vector_size))
+    # test_inputs = np.reshape(np.array(test_inputs), (len(test_inputs), model.vector_size))
+    # test_true_words = np.reshape(np.array(test_true_words), (len(test_true_words), model.vector_size))
     with tf.Session() as sess:
         saver = tf.train.Saver()
         saver.restore(sess, SAVE_PATH)
@@ -279,15 +258,15 @@ def get_accuracy(model, true_words, pred_words, topn=10):
 
 
 def main():
-    #filename='yelp_academic_dataset_review.json'
+    # filename='yelp_academic_dataset_review.json'
     filename='partial_reviews.json'
 
-    model, sentences = get_word_embedding(filename,0, 800)
-    #TODO: to change
+    model, sentences, stars = get_word_embedding(filename,0, 800)
+    # TODO: to change
     n_steps = 64
     reverse = True
-    dataset = prepare_input_for_nn(model, sentences, n_steps, reverse)
-    test_sentences = get_review_data(filename, 800, 1000)
+    dataset = prepare_input_for_nn(model, sentences, stars, n_steps, reverse)
+    test_sentences, stars = get_review_data(filename, 800, 1000)
 
     print("----------------------- DONE WITH GET REVIEW DATA -----------------------")
     
@@ -322,7 +301,8 @@ def main():
     print("----------------------- DONE WITH TRAINING -----------------------")
     # t_input_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='test_input')
     # t_word_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='test_predicted_label')
-    test_true_words, test_pred_words = get_prediction(seq_length_ph, training, model, nn_model, test_sentences, input_ph, word_ph, n_steps)
+    test_true_words, test_pred_words = get_prediction(seq_length_ph, training, model, nn_model,\
+                                                      test_sentences, stars, input_ph, word_ph, n_steps)
     print("----------------------- DONE WITH PREDICTION -----------------------")
     #acc = get_accuracy(model, test_true_words, test_pred_words)
     #print("----------------------- DONE WITH GET ACCURACY -----------------------")
