@@ -105,3 +105,42 @@ def dict_filter(model, inputs, pred_word_vec, topn=1, cons=20):
         if inputs in word:
             return word
     return ''
+
+
+def demo(w2v_model, pred_model, topn=1, n_steps=20, reverse=True):
+    '''
+    Provides an interactive interface that generates prediction.
+    Inputs:
+        w2v_model: pretrained word2vec model
+        pred_model: pretrained prediction model as proposed in project: LM or NN or LSTM
+        topn: top n predictions to be generated
+        n_steps: number of previous words to be considered
+        reverse: if the input should be reversed
+    '''
+    while True:
+        print("Please give a rating in the scale of 5:")
+        rate = sys.stdin.readline()
+        rate = int(rate*2)/2
+        print("Please give some input")
+        line = sys.stdin.readline()
+        sentence = line.split()
+        sentence_embedding = []
+        for i in range(len(sentence)):
+            if sentence[i] in model.wv.vocab:
+                sentence_embedding.append(model[sentence[i]])
+            else:
+                sentence_embedding.append(np.zeros(model.vector_size, dtype=np.float32))
+        sentence_embedding = np.array(sentence_embedding)
+        # begin prepare input
+        if len(sentence) < n_steps + 1:
+            cur_input = sentence_embedding[:-1]
+            pad_num = n_steps - len(sentence)
+            pad = np.zeros((pad_num, model.vector_size))
+            cur_input = np.concatenate((pad, cur_input), axis=0) 
+        else:
+            cur_input = sentence_embedding[len(sentence)-num_steps:-1]
+        if reverse:
+            cur_input=np.flip(cur_input,0)
+        pred = pred_model(cur_input)
+        pred_word = dict_filter(model, sentence[-1], pred, topn=1, cons=20)
+        print(pred_word)
