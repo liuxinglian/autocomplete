@@ -9,6 +9,13 @@ import pygtrie as trie
 from gensim.models import Word2Vec
 import gensim.models.keyedvectors as word2vec
 
+
+'''
+This is a file that evaluates the model using query autocompletion metrics.
+get_esaved function will return average esaved for the model.
+dict_filter will return a word which is the closest prediction given the inputs.
+'''
+
 def get_esaved(model, true_words, pred_words, topn=1, cons=20):
     '''
     This function evaluates the model by calculating the eSaved as defined in checkpoint2.
@@ -75,6 +82,8 @@ def dict_filter(model, inputs, pred_word_vec, topn=1, cons=20):
     '''
     similar_list = model.most_similar([pred_word_vec], [], cons)
     pred_words_list = [pair[0] for pair in temp2]
+    '''
+    # This is a deprecated version that use trie tree to do the whole process
     # build a trie tree to speed up the finding process
     t = trie.CharTrie()
     rt = {}
@@ -89,3 +98,10 @@ def dict_filter(model, inputs, pred_word_vec, topn=1, cons=20):
     except KeyError:
         return ''
     return pred_word
+    '''
+    # This is a better version that uses Python's substring method
+    for i in range(len(pred_words_list)):
+        word = pred_words_list[i]
+        if inputs in word:
+            return word
+    return ''
