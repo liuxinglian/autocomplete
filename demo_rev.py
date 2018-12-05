@@ -61,12 +61,12 @@ with tf.Session() as sess:
         coeff = np.arange(20) + 1
         coeff = coeff.reshape(20,1)
         cur_input = np.sum(coeff*cur_input, axis=0).reshape(1, 100)
-        cur_input = np/denom
-
+        cur_input = cur_input/denom
             
         nn_model = tf.get_default_graph().get_tensor_by_name("dense_3/BiasAdd:0")
         input_ph = tf.get_default_graph().get_tensor_by_name("train_input:0")
            
         pred = sess.run(nn_model, feed_dict={input_ph: cur_input}) 
-        pred_word = pred_dict_filter(word2vec_model, sentence[-1], pred, topn=1, cons=200)
-        print(pred_word)
+        pred_word = pred_dict_filter(word2vec_model, sentence[-1], pred[-1], topn=2, cons=200)
+        for word in pred_word:
+            print(pred_word)
