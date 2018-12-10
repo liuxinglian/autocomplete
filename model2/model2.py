@@ -173,16 +173,19 @@ def get_accuracy(model, true_words, pred_words, topn=10):
 
 
 def main():
-    params = model2_params()
-    save_path = params.tf_save_path
+    sparams = sys_params()
+    mparams = model2_params()
+
+    save_path = mparams.tf_save_path
     save_folder = os.path.dirname(save_path)
     while os.path.isdir(save_folder):
         overwrite = input("There is a existing model on this path, overwrite? [y/n]")
         if (overwrite == 'y'):
             shutil.rmtree(save_folder)
-    
 
-    model, sentences, stars = get_word_embedding('yelp_academic_dataset_review.json', start_train, end_train)
+    start_train, end_train = params.train_start, params.train_end
+    model, sentences, stars = get_word_embedding(sparams.all_reviews_jsonfn, start_train, end_train)
+
     train_fea, train_label = prepare_input_for_nn(model, sentences, stars, reverse=False)
     test_sentences, test_stars = get_review_data('yelp_academic_dataset_review.json', start_test, end_test)
     print("----------------------- DONE WITH GET REVIEW DATA -----------------------")
