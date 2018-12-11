@@ -13,7 +13,13 @@ The dataset we use is the [Yelp Open Dataset](https://www.yelp.com/dataset). The
 
 ### Requirements
 
-python (3.5.x, 3.6.x)
+  * python (3.5.x, 3.6.x)
+  
+    * tensorflow==1.12.0
+    
+    * gensim==3.6.0
+    
+    * nltk==3.4
 
 ### Usage
 
