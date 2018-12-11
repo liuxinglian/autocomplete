@@ -9,7 +9,9 @@ Haiyang Huang (hyhuang), Xinglian Liu (xinglian), Yuanhang Luo (royluo), Yuzhou 
 
 ### Dataset
 
-The dataset we use is the [Yelp Open Dataset](https://www.yelp.com/dataset). The Yelp Open Dataset consists of a few json files (business.json, review.json, user.json, etc)
+The dataset we use is the [Yelp Open Dataset](https://www.yelp.com/dataset). The Yelp Open Dataset consists of a few JSON data files (business.json, review.json, user.json, etc). We only use one of the JSON data files in the dataset, namely review.json. 
+
+In review.json, there is one JSON object per line. One sample json object in review.json is provided as follows.
 
 ### Requirements
 
