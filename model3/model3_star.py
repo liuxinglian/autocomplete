@@ -11,6 +11,8 @@ from model3_config import model3_params
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from system_config import system_params
 from prep_data import get_review_data, get_word_embedding
+import warnings
+warnings.filterwarnings("ignore")
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"]="3"
 
