@@ -20,5 +20,13 @@ Usage of the models that we built is as follows:
   * Model 1
   
   * Model 2
+  
+  ```shell
+  python model2/model2.py
+  ```
 
   * Model 3
+  
+  ```shell
+  python model3/model3_star.py
+  ```
