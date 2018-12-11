@@ -13,7 +13,7 @@ The dataset we use is the [Yelp Open Dataset](https://www.yelp.com/dataset). The
 
 ### Requirements
 
-3.5 <= python <= 3.6
+python (3.5.x, 3.6.x)
 
 ### Usage
 
