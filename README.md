@@ -10,6 +10,10 @@ Haiyang Huang (hyhuang), Xinglian Liu (xinglian), Yuanhang Luo (royluo), Yuzhou 
 ### Dataset
 
 ### Usage
+
+The complete documentation is at the wiki page https://github.com/liuxinglian/autocomplete/wiki.
+
+Usage of the models that we built is as follows:
   
 ##### Model 1
   
