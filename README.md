@@ -1,4 +1,4 @@
 # Auto-complete
-########Team members: 
+####### Team members: 
 Haiyang Huang (hyhuang), Xinglian Liu (xinglian), Yuanhang Luo (royluo), Yuzhou Mao (myz)
   
