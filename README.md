@@ -1,4 +1,4 @@
-# NLP Final Project
-## Auto-complete
-### Team members: Haiyang Huang (hyhuang), Xinglian Liu (xinglian), Yuanhang Luo (royluo), Yuzhou Mao (myz)
+# Auto-complete
+########Team members: 
+Haiyang Huang (hyhuang), Xinglian Liu (xinglian), Yuanhang Luo (royluo), Yuzhou Mao (myz)
   
