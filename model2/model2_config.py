@@ -9,6 +9,7 @@ class model2_params:
         self.add_star = False
         self.epoches = 3
         self.learning_rate = 0.001
+        self.is_shuffle = True
         
         self.train_size = 100
         self.train_start = 0

@@ -191,7 +191,7 @@ def main():
     
     print('---------------- Getting Data ----------------')
     wv_model, train_sentences, train_stars = get_word_embedding(sys_params.all_reviews_jsonfn, start_train, end_train)
-    test_sentences, test_stars = get_review_data(sys_params.all_reviews_jsonfn, start_test, end_test)
+    test_sentences, test_stars = get_review_data(sys_params.all_reviews_jsonfn, start_test, end_test, model_params.is_shuffle)
     print('---------------- Done Getting Data ----------------')
 
     print('---------------- Prepaing Input for Neural Network ----------------')
