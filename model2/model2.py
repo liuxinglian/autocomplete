@@ -6,8 +6,9 @@ import nltk
 import tensorflow as tf
 from gensim.models import Word2Vec
 import gensim.models.keyedvectors as word2vec
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from model2_config import model2_params
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from system_config import system_params
 from prep_data import get_review_data, get_word_embedding
 
