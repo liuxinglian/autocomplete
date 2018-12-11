@@ -1,5 +1,14 @@
 # prep_data.py
 
+from pathlib import Path
+from operator import itemgetter
+import json, sys, shutil, os
+import numpy as np
+import nltk
+import tensorflow as tf
+from gensim.models import Word2Vec
+import gensim.models.keyedvectors as word2vec
+
 def get_review_data(filename, start, end):
     with open(filename) as f:
         data = f.readlines()
