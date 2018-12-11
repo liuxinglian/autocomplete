@@ -56,20 +56,20 @@ Haiyang Huang (hyhuang), Xinglian Liu (xinglian), Yuanhang Luo (royluo), Yuzhou 
 
 ### Usage
 
-The complete documentation is at the wiki page https://github.com/liuxinglian/autocomplete/wiki.
+  * The complete documentation is at the wiki page https://github.com/liuxinglian/autocomplete/wiki.
 
-Usage of the models that we built is as follows:
+  * Usage of the models that we built is as follows:
   
-  * Model 1
+    * Model 1
   
-  * Model 2
+    * Model 2
   
-  ```shell
-  python model2/model2.py
-  ```
+      ```shell
+      python model2/model2.py
+      ```
 
-  * Model 3
-  
-  ```shell
-  python model3/model3_star.py
-  ```
+    * Model 3
+
+      ```shell
+      python model3/model3_star.py
+      ```
