@@ -261,7 +261,7 @@ def main():
     start_test, end_test = model_params.test_start, model_params.test_end
     
     wv_model, sentences, stars = get_word_embedding(filename, start_train, end_train)
-    test_sentences, stars = get_review_data(filename, start_test, end_test)
+    test_sentences, stars = get_review_data(filename, start_test, end_test, model_params.is_shuffle)
     dataset = prepare_input_for_nn(wv_model, sentences, model_params.num_steps, stars,  model_params.reverse)
 
     print("----------------------- DONE WITH GET REVIEW DATA -----------------------")

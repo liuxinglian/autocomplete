@@ -9,7 +9,8 @@ class model3_params:
         self.add_star = False
         self.epoches = 3
         self.learning_rate = 0.001
-
+        self.is_shuffle = True
+        
         self.num_steps = 50
         self.reverse = True
 
