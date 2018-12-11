@@ -53,6 +53,8 @@ Haiyang Huang (hyhuang), Xinglian Liu (xinglian), Yuanhang Luo (royluo), Yuzhou 
     * gensim==3.6.0
     
     * nltk==3.4
+    
+    * pygtrie==2.3
 
 ### Usage
 
