@@ -4,17 +4,27 @@
 parameters specific to model 2
 '''
 
-model3_params = {
-    train_size = 10000,
-    test_size = (int)(0.2 * train_size),
-    
-    train_start = 0,
-    train_end = train_start + train_size,
+class model3_params:
+    def __init__(self):
+        self.add_star = False
+        self.epoches = 3
+        self.learning_rate = 0.001
 
-    test_start = train_end,
-    test_end = test_start + test_size,
+        self.num_steps = 50
+        self.reverse = True
 
-    tf_save_path : './model' + '_train_' + train_size + '_test_' + test_size + '/m.cpkt',
+        self.num_neurons = 128
+        self.batch_size = 64
+        self.cpu_or_gpu = 'gpu'
+        self.cell_type = 'gru'
+        self.num_layers = 3
+        self.if_bidirect = True
 
-    add_star : False
-}
+        self.train_size = 100
+        self.train_start = 0
+        self.train_end = self.train_start + self.train_size
+
+        self.test_size = (int)(0.2 * self.train_size)
+        self.test_start = self.train_end
+        self.test_end = self.test_start + self.test_size
+        self.tf_save_path = './model3_train_{}_test_{}/m.cpkt'.format(self.train_size, self.test_size)
