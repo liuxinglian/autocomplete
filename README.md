@@ -1,4 +1,4 @@
-## Auto-complete
+## User Input Auto Completion
 
 ### Introduction
 
