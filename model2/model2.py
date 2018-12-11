@@ -11,7 +11,6 @@ from fin.system_config import system_params
 from model2_config import model2_params
 from fin.prep_data import get_review_data, get_word_embedding
 
-
 # start predicting from the 6th word
 def prepare_input_for_nn(model, sentences, stars, reverse=False):
     # list of numpy array (each is a embedding representing the previous sequence)
@@ -98,7 +97,7 @@ def get_optimizer(loss, lr=0.005):
     # return a tf operation
     return tf.train.AdamOptimizer(learning_rate=lr).minimize(loss)
 
-def train_nn(model, sess, saver, input_ph, word_ph, loss, train_op, inputs, true_words, batch_size, training, num_epoch):
+def train_nn(model, sess, saver, input_ph, word_ph, loss, train_op, inputs, true_words, batch_size, training, num_epoch, save_path):
     print("begin training")
     writer = tf.summary.FileWriter('./graphs', sess.graph)
     loss_summary = tf.summary.scalar('loss', loss)
@@ -137,10 +136,10 @@ def train_nn(model, sess, saver, input_ph, word_ph, loss, train_op, inputs, true
                 print("loss for batch {} is {}".format(i, cur_loss))
 
     
-    saver.save(sess, SAVE_PATH)
+    saver.save(sess, save_path)
 
 
-def get_prediction(model, nn_model, test_sentences, test_stars, input_ph, word_ph, training_ph):
+def get_prediction(model, nn_model, test_sentences, test_stars, input_ph, word_ph, training_ph, save_path):
     print('begin predicting')
     test_inputs, test_true_words = prepare_input_for_nn(model, test_sentences, test_stars, reverse=False)
     print('test true word len = {}'.format(len(test_true_words)))
@@ -148,7 +147,7 @@ def get_prediction(model, nn_model, test_sentences, test_stars, input_ph, word_p
     test_true_words = np.reshape(np.array(test_true_words), (len(test_true_words), model.vector_size))
     with tf.Session() as sess:
         saver = tf.train.Saver()
-        saver.restore(sess, SAVE_PATH)
+        saver.restore(sess, save_path)
         test_pred_words = sess.run(nn_model, feed_dict={input_ph: test_inputs, word_ph: test_true_words, training_ph:False})
     print('test pred word len = {}'.format(len(test_pred_words)))
     return test_true_words, test_pred_words
@@ -210,12 +209,12 @@ def main():
     init = tf.global_variables_initializer()
     with tf.Session() as sess:
         sess.run(init)
-        train_nn(wv_model, sess, saver, input_ph, word_ph, loss, train_op, train_fea, train_label, 32, training, num_epoch=epoch)
+        train_nn(wv_model, sess, saver, input_ph, word_ph, loss, train_op, train_fea, train_label, 32, training, num_epoch=model_params.epoches, save_path=save_path)
     print("---------------- Done Training ----------------")
     # t_input_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='test_input')
     # t_word_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='test_predicted_label')
     print("---------------- Predicting ----------------")
-    test_true_words, test_pred_words = get_prediction(wv_model, nn_model, test_sentences, test_stars, input_ph, word_ph, training)
+    test_true_words, test_pred_words = get_prediction(wv_model, nn_model, test_sentences, test_stars, input_ph, word_ph, training, save_path)
     print("---------------- Done Predicting ----------------")
     print("---------------- Getting Accuracy ----------------")
     acc = get_accuracy(wv_model, test_true_words, test_pred_words)
