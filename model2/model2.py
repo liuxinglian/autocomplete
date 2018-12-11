@@ -1,5 +1,3 @@
-from system_config import sys_params
-from model2_config import model2_params
 from pathlib import Path
 from operator import itemgetter
 import json, sys, shutil, os
@@ -8,7 +6,10 @@ import nltk
 import tensorflow as tf
 from gensim.models import Word2Vec
 import gensim.models.keyedvectors as word2vec
-from prep_data import get_review_data, get_word_embedding
+sys.path.append("..")
+from fin.system_config import system_params
+from model2_config import model2_params
+from fin.prep_data import get_review_data, get_word_embedding
 
 
 # start predicting from the 6th word
@@ -173,42 +174,52 @@ def get_accuracy(model, true_words, pred_words, topn=10):
 
 
 def main():
-    sparams = sys_params()
-    mparams = model2_params()
+    sys_params = system_params()
+    model_params = model2_params()
 
-    save_path = mparams.tf_save_path
+    save_path = model_params.tf_save_path
     save_folder = os.path.dirname(save_path)
     while os.path.isdir(save_folder):
         overwrite = input("There is a existing model on this path, overwrite? [y/n]")
         if (overwrite == 'y'):
             shutil.rmtree(save_folder)
 
-    start_train, end_train = params.train_start, params.train_end
-    model, sentences, stars = get_word_embedding(sparams.all_reviews_jsonfn, start_train, end_train)
+    start_train, end_train = model_params.train_start, model_params.train_end
+    start_test, end_test = model_params.test_start, model_params.test_end
+    
+    print('---------------- Getting Data ----------------')
+    wv_model, train_sentences, train_stars = get_word_embedding(sys_params.all_reviews_jsonfn, start_train, end_train)
+    test_sentences, test_stars = get_review_data(sys_params.all_reviews_jsonfn, start_test, end_test)
+    print('---------------- Done Getting Data ----------------')
 
-    train_fea, train_label = prepare_input_for_nn(model, sentences, stars, reverse=False)
-    test_sentences, test_stars = get_review_data('yelp_academic_dataset_review.json', start_test, end_test)
-    print("----------------------- DONE WITH GET REVIEW DATA -----------------------")
-    input_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='train_input')
-    word_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='train_label')
+    print('---------------- Prepaing Input for Neural Network ----------------')
+    train_fea, train_label = prepare_input_for_nn(wv_model, train_sentences, train_stars, reverse=False)
+    print('---------------- Done Prepaing Input for Neural Network ----------------')
+    
+    input_ph = tf.placeholder(tf.float32, [None, wv_model.vector_size], name='train_input')
+    word_ph = tf.placeholder(tf.float32, [None, wv_model.vector_size], name='train_label')
     training = tf.placeholder(tf.bool)
+    
     nn_model = build_nn(input_ph)
     loss = get_loss(nn_model, word_ph)
-    train_op = get_optimizer(loss, 0.001)
+    train_op = get_optimizer(loss, model_params.learning_rate)
     saver = tf.train.Saver()
+
     # begin training
+    print("---------------- Training ----------------")
     init = tf.global_variables_initializer()
     with tf.Session() as sess:
         sess.run(init)
-        train_nn(model, sess, saver, input_ph, word_ph, loss, train_op, train_fea, train_label, 32, training, num_epoch=epoch)
-    print("----------------------- DONE WITH TRAINING -----------------------")
+        train_nn(wv_model, sess, saver, input_ph, word_ph, loss, train_op, train_fea, train_label, 32, training, num_epoch=epoch)
+    print("---------------- Done Training ----------------")
     # t_input_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='test_input')
     # t_word_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='test_predicted_label')
-    test_true_words, test_pred_words = get_prediction(model, nn_model, test_sentences, test_stars, input_ph, word_ph, training)
-    print("----------------------- DONE WITH PREDICTION -----------------------")
-    acc = get_accuracy(model, test_true_words, test_pred_words)
-    print("----------------------- DONE WITH GET ACCURACY -----------------------")
-    print('accuracy = {}'.format(acc))
+    print("---------------- Predicting ----------------")
+    test_true_words, test_pred_words = get_prediction(wv_model, nn_model, test_sentences, test_stars, input_ph, word_ph, training)
+    print("---------------- Done Predicting ----------------")
+    print("---------------- Getting Accuracy ----------------")
+    acc = get_accuracy(wv_model, test_true_words, test_pred_words)
+    print('Accuracy is {}'.format(acc))
 
 if __name__ == '__main__':
     main()
