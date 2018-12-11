@@ -6,10 +6,11 @@ import nltk
 import tensorflow as tf
 from gensim.models import Word2Vec
 import gensim.models.keyedvectors as word2vec
-sys.path.append("..")
-from fin.system_config import system_params
 from model2_config import model2_params
-from fin.prep_data import get_review_data, get_word_embedding
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from system_config import system_params
+from prep_data import get_review_data, get_word_embedding
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"]="3"
 
