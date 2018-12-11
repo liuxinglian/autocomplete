@@ -7,9 +7,11 @@ import tensorflow as tf
 from gensim.models import Word2Vec
 import gensim.models.keyedvectors as word2vec
 from dict_filter import get_esaved
-from model2 import get_review_data, get_word_embedding
+from fin.system_config import system_params
+from model3_config import model3_params
+from fin.prep_data import get_review_data, get_word_embedding
 
-SAVE_PATH = './model/m.cpkt'
+os.environ["TF_CPP_MIN_LOG_LEVEL"]="3"
 
 class DataSet(object):
     '''
@@ -89,7 +91,7 @@ def get_rnn_cell(typ, platform, **kwargs):
         raise ValueError()
 
 
-def prepare_input_for_nn(model, sentences, n_steps, stars, reverse=True, training=True):
+def prepare_input_for_nn(wv_model, sentences, n_steps, stars, reverse=True, training=True):
     '''
     Prepare the input for the seq2seq model, with the pre-defined length and order.
     It is being said that reversed model leads to a better performance.
@@ -112,10 +114,10 @@ def prepare_input_for_nn(model, sentences, n_steps, stars, reverse=True, trainin
         if len(sentence) < 5:
             continue
         for i in range(len(sentence)):
-            if sentence[i] in model.wv.vocab:
-                sentence_embedding.append(model[sentence[i]])
+            if sentence[i] in wv_model.wv.vocab:
+                sentence_embedding.append(wv_model[sentence[i]])
             else:
-                sentence_embedding.append(np.zeros(model.vector_size, dtype=np.float32))
+                sentence_embedding.append(np.zeros(wv_model.vector_size, dtype=np.float32))
         sentence_embedding = np.array(sentence_embedding)
         # begin prepare input and label
         for i in range(5, len(sentence)):
@@ -125,13 +127,13 @@ def prepare_input_for_nn(model, sentences, n_steps, stars, reverse=True, trainin
             cur_label = sentence[i]
             if seq_length < n_steps:
                 pad_num = n_steps - seq_length
-                pad = np.zeros((pad_num, model.vector_size))
+                pad = np.zeros((pad_num, wv_model.vector_size))
                 cur_input = np.concatenate((pad, cur_input), axis=0) 
             if reverse:
                 cur_input = np.flip(cur_input,0)
-            if cur_label in model.wv.vocab:
+            if cur_label in wv_model.wv.vocab:
                 inputs.append(cur_input)
-                true_words.append(model[cur_label])
+                true_words.append(wv_model[cur_label])
                 seq_lengths.append(seq_length)
                 stars_list.append(star)
     inputs, true_words, seq_lengths = np.array(inputs, dtype=np.float32), np.array(true_words), np.array(seq_lengths)
@@ -139,7 +141,7 @@ def prepare_input_for_nn(model, sentences, n_steps, stars, reverse=True, trainin
     return DataSet(inputs, true_words, seq_lengths, stars_list)
 
 
-def build_nn(n_layers, xpu, cell_type, training, stars, input_ph, n_steps, n_inputs, n_neurons, seq_length_ph, out_size=100, keep_prob=0.5, bidirection=False):
+def build_nn(n_layers, xpu, cell_type, training, stars, input_ph, n_steps, num_inputs, n_neurons, seq_length_ph, out_size=100, keep_prob=0.5, bidirection=False):
     
     if n_layers ==1:
         print("1 layer")
@@ -191,7 +193,7 @@ def get_optimizer(loss, lr=0.003):
     return tf.train.AdamOptimizer(learning_rate=lr, beta1=0.9, beta2=0.99).minimize(loss)
 
 
-def train_nn(seq_length_ph,n_steps, n_inputs, training, model, sess, saver,stars_ph, input_ph, word_ph, loss, train_op, dataset, batch_size, num_epoch):
+def train_nn(seq_length_ph,n_steps, num_inputs, training, wv_model, sess, saver,stars_ph, input_ph, word_ph, loss, train_op, dataset, batch_size, num_epoch):
     print("begin training")
 
     for r in range(num_epoch):
@@ -199,7 +201,7 @@ def train_nn(seq_length_ph,n_steps, n_inputs, training, model, sess, saver,stars
             X_batch, y_batch, seq_length_batch, stars_batch = dataset.next_batch(batch_size)
             #?????
             #print(X_batch.shape)
-            X_batch = X_batch.reshape((-1, n_steps, n_inputs))
+            X_batch = X_batch.reshape((-1, n_steps, num_inputs))
             sess.run(train_op, feed_dict={training: True, stars_ph:stars_batch, input_ph: X_batch, word_ph: y_batch, seq_length_ph: seq_length_batch})
             cur_loss = sess.run(loss, feed_dict={training: True, stars_ph:stars_batch,input_ph: X_batch, word_ph: y_batch, seq_length_ph: seq_length_batch})
             if i%1000==0:
@@ -208,16 +210,16 @@ def train_nn(seq_length_ph,n_steps, n_inputs, training, model, sess, saver,stars
     saver.save(sess, SAVE_PATH)
 
 
-def get_prediction(seq_length_ph, training, model, nn_model, test_sentences, stars, stars_ph, input_ph, word_ph, n_steps,reverse=True):
+def get_prediction(seq_length_ph, training, wv_model, nn_model, test_sentences, stars, stars_ph, input_ph, word_ph, n_steps,reverse=True):
     print('begin predicting')
-    dataset = prepare_input_for_nn(model, test_sentences, n_steps, stars, reverse, training = False)
+    dataset = prepare_input_for_nn(wv_model, test_sentences, n_steps, stars, reverse, training = False)
     X_batch, y_batch, seq_length_batch = dataset.data, dataset.label, dataset.seq_length
     test_stars = dataset.stars
     test_inputs = X_batch
     test_true_words = y_batch
     print('test true word len = {}'.format(len(test_true_words)))
-    #test_inputs = np.reshape(np.array(test_inputs), (len(test_inputs), model.vector_size))
-    #test_true_words = np.reshape(np.array(test_true_words), (len(test_true_words), model.vector_size))
+    #test_inputs = np.reshape(np.array(test_inputs), (len(test_inputs), wv_model.vector_size))
+    #test_true_words = np.reshape(np.array(test_true_words), (len(test_true_words), wv_model.vector_size))
     with tf.Session() as sess:
         saver = tf.train.Saver()
         saver.restore(sess, SAVE_PATH)
@@ -226,7 +228,7 @@ def get_prediction(seq_length_ph, training, model, nn_model, test_sentences, sta
     return test_true_words, test_pred_words
 
 
-def get_accuracy(model, true_words, pred_words, topn=10):
+def get_accuracy(wv_model, true_words, pred_words, topn=10):
     print('begin getting accuracy')
     correct = 0
     for i in range(len(true_words)):
@@ -234,9 +236,9 @@ def get_accuracy(model, true_words, pred_words, topn=10):
         true_word_vec = true_words[i]
         pred_word_vec = pred_words[i]
 
-        temp1 = model.most_similar([true_word_vec], [], topn)
+        temp1 = wv_model.most_similar([true_word_vec], [], topn)
         true_words_set = set([pair[0] for pair in temp1])
-        temp2 = model.most_similar([pred_word_vec], [], topn)
+        temp2 = wv_model.most_similar([pred_word_vec], [], topn)
         pred_words_set = set([pair[0] for pair in temp2])
 
         if bool(true_words_set & pred_words_set):
@@ -245,57 +247,71 @@ def get_accuracy(model, true_words, pred_words, topn=10):
 
 
 def main():
-    filename='yelp_academic_dataset_review.json'
-    #filename='partial_reviews.json'
+    sys_params = system_params()
+    model_params = model3_params()
 
-    model, sentences, stars = get_word_embedding(filename,0, 10000)
-    print(stars)
-    #TODO: to change
-    n_steps = 50
-    reverse = True
-    dataset = prepare_input_for_nn(model, sentences, n_steps,stars,  reverse)
-    test_sentences, stars = get_review_data(filename, 100001, 102000)
+    save_path = model_params.tf_save_path
+    save_folder = os.path.dirname(save_path)
+    while os.path.isdir(save_folder):
+        overwrite = input("There is a existing model on this path, overwrite? [y/n]")
+        if (overwrite == 'y'):
+            shutil.rmtree(save_folder)
+
+    start_train, end_train = model_params.train_start, model_params.train_end
+    start_test, end_test = model_params.test_start, model_params.test_end
+    
+    wv_model, sentences, stars = get_word_embedding(filename, start_train, end_train)
+    test_sentences, stars = get_review_data(filename, start_test, end_test)
+    dataset = prepare_input_for_nn(wv_model, sentences, model_params.num_steps, stars,  model_params.reverse)
 
     print("----------------------- DONE WITH GET REVIEW DATA -----------------------")
     
     #embedded vector size
-    n_inputs = model.vector_size
+    num_inputs = wv_model.vector_size
     #each vector is converted into dim=n_neurons
-    n_neurons = 128
-    batch_size= 64
-    # do reset_graph()?
-    cpu_or_gpu = 'gpu'
-    cell_ty = 'gru'
-    n_layers = 3
-    if_bidirect = True
     
-    input_ph = tf.placeholder(tf.float32, [None, n_steps, model.vector_size], name='train_input')
+    # do reset_graph()?
+    
+    input_ph = tf.placeholder(tf.float32, [None, model_params.num_steps, num_inputs], name='train_input')
     stars_ph = tf.placeholder(tf.float32, [None], name='train_star_input')
-    word_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='train_label')
+    word_ph = tf.placeholder(tf.float32, [None, num_inputs], name='train_label')
     training = tf.placeholder(tf.bool)
     seq_length_ph = tf.placeholder(tf.int32, [None])
     
-    nn_model = build_nn(n_layers, cpu_or_gpu, cell_ty, training, stars_ph, input_ph, n_steps, n_inputs, n_neurons, seq_length_ph, bidirection=if_bidirect)
+    nn_model = build_nn(
+        model_params.num_layers, 
+        model_params.cpu_or_gpu, 
+        model_params.cell_type, 
+        training, 
+        stars_ph, 
+        input_ph, 
+        model_params.num_steps, 
+        num_inputs, 
+        model_params.num_neurons, 
+        seq_length_ph, 
+        bidirection=model_params.if_bidirect)
     #state is the state of last time stamp (word) for EACH sentence
 
     loss = get_loss(nn_model, word_ph)
-    train_op = get_optimizer(loss)
+    train_op = get_optimizer(
+        loss,
+        lr=model_params.learning_rate)
     saver = tf.train.Saver()
     # begin training
     init = tf.global_variables_initializer()
     
     with tf.Session() as sess:
         sess.run(init)
-        train_nn(seq_length_ph,n_steps, n_inputs, training, model, sess, saver, stars_ph,input_ph, word_ph, loss, train_op, dataset, batch_size, num_epoch=3)
+        train_nn(seq_length_ph,n_steps, num_inputs, training, wv_model, sess, saver, stars_ph,input_ph, word_ph, loss, train_op, dataset, batch_size, num_epoch=3)
     print("----------------------- DONE WITH TRAINING -----------------------")
-    # t_input_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='test_input')
-    # t_word_ph = tf.placeholder(tf.float32, [None, model.vector_size], name='test_predicted_label')
-    test_true_words, test_pred_words = get_prediction(seq_length_ph, training, model, nn_model, test_sentences,  stars, stars_ph, input_ph, word_ph, n_steps)
+    # t_input_ph = tf.placeholder(tf.float32, [None, wv_model.vector_size], name='test_input')
+    # t_word_ph = tf.placeholder(tf.float32, [None, wv_model.vector_size], name='test_predicted_label')
+    test_true_words, test_pred_words = get_prediction(seq_length_ph, training, wv_model, nn_model, test_sentences,  stars, stars_ph, input_ph, word_ph, n_steps)
     print("----------------------- DONE WITH PREDICTION -----------------------")
-    #acc = get_accuracy(model, test_true_words, test_pred_words)
+    #acc = get_accuracy(wv_model, test_true_words, test_pred_words)
     #print("----------------------- DONE WITH GET ACCURACY -----------------------")
     #print('accuracy = {}'.format(acc))
-    eSaved = get_esaved(model, test_true_words, test_pred_words, topn=1, cons=20)
+    eSaved = get_esaved(wv_model, test_true_words, test_pred_words, topn=1, cons=20)
     print("----------------------- DONE WITH GET ESAVED -----------------------")
     print('eSaved = {}'.format(eSaved))
 
