@@ -11,6 +11,8 @@ from fin.system_config import system_params
 from model2_config import model2_params
 from fin.prep_data import get_review_data, get_word_embedding
 
+os.environ["TF_CPP_MIN_LOG_LEVEL"]="3"
+
 # start predicting from the 6th word
 def prepare_input_for_nn(model, sentences, stars, reverse=False):
     # list of numpy array (each is a embedding representing the previous sequence)
