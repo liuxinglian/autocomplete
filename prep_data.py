@@ -8,15 +8,22 @@ import nltk
 import tensorflow as tf
 from gensim.models import Word2Vec
 import gensim.models.keyedvectors as word2vec
+import random
 
-def get_review_data(filename, start, end):
+def get_review_data(filename, start, end, is_shuffle=False):
     with open(filename) as f:
         data = f.readlines()
     reviews = [json.loads(x.strip()) for x in data]
+    
     sentences = []
     stars = []
     # sentences = [nltk.word_tokenize(reviews[i]['text'].lower()) for i in range(start, end)]
-    for i in range(start, end):
+    if is_shuffle:
+        n = end - start
+        choose_index = random.sample(range(len(reviews)), n)
+    else:
+        choose_index = range(start, end)
+    for i in choose_index:
         sentences.append(nltk.word_tokenize(reviews[i]['text'].lower()))
         stars.append(reviews[i]['stars'])
 
