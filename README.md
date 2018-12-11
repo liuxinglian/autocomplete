@@ -11,6 +11,10 @@ Haiyang Huang (hyhuang), Xinglian Liu (xinglian), Yuanhang Luo (royluo), Yuzhou 
 
 The dataset we use is the [Yelp Open Dataset](https://www.yelp.com/dataset). The Yelp Open Dataset consists of a few json files (business.json, review.json, user.json, etc)
 
+### Requirements
+
+3.5 <= python <= 3.6
+
 ### Usage
 
 The complete documentation is at the wiki page https://github.com/liuxinglian/autocomplete/wiki.
