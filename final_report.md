@@ -14,4 +14,4 @@ It should include:
   
   * Conclusions, main contributions of your project, what worked and what did not work, considerations for future work.
   
-  * Description of the individual contributions of each team member.The final report should be at least six pages and at most ten pages long.
+  * Description of the individual contributions of each team member. The final report should be at least six pages and at most ten pages long.
