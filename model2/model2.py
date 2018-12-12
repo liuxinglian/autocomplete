@@ -41,7 +41,7 @@ def prepare_input_for_nn(model, sentences, stars, reverse=False):
                 cur_label = sentence[i]
 
                 if cur_label in model.wv.vocab:
-                    inputs.append(cur_input)
+                    inputs.append(np.concatenate((cur_input, star), axis=0))
                     true_words.append(model[cur_label])
 
                     weighted_sum += model[cur_label] * (i+1)
@@ -72,7 +72,7 @@ def prepare_input_for_nn(model, sentences, stars, reverse=False):
                 cur_label = sentence[i]
 
                 if cur_label in model.wv.vocab:
-                    inputs.append(cur_input)
+                    inputs.append(np.concatenate((cur_input, star), axis=0))
                     true_words.append(model[cur_label])
 
                     weighted_sum += model[cur_label] * cur_weight
@@ -118,7 +118,7 @@ def train_nn(model, sess, saver, input_ph, word_ph, loss, train_op, inputs, true
         batch_index = np.random.choice(index, size=batch_size, replace=True)
         batch_inputs = itemgetter(*batch_index)(inputs)
         batch_words = itemgetter(*batch_index)(true_words)
-        batch_inputs_np = np.reshape(np.array(batch_inputs), (batch_size, model.vector_size))
+        batch_inputs_np = np.reshape(np.array(batch_inputs), (batch_size, model.vector_size+1))
         batch_words_np = np.reshape(np.array(batch_words), (batch_size, model.vector_size))
         sess.run(train_op, feed_dict={input_ph: batch_inputs_np, word_ph: batch_words_np, training:False})
         cur_loss = sess.run(loss, feed_dict={input_ph: batch_inputs_np, word_ph: batch_words_np, training:False})
@@ -133,7 +133,7 @@ def train_nn(model, sess, saver, input_ph, word_ph, loss, train_op, inputs, true
             batch_index = np.random.choice(index, size=batch_size, replace=True)
             batch_inputs = itemgetter(*batch_index)(inputs)
             batch_words = itemgetter(*batch_index)(true_words)
-            batch_inputs_np = np.reshape(np.array(batch_inputs), (batch_size, model.vector_size))
+            batch_inputs_np = np.reshape(np.array(batch_inputs), (batch_size, model.vector_size+1))
             batch_words_np = np.reshape(np.array(batch_words), (batch_size, model.vector_size))
             sess.run(train_op, feed_dict={input_ph: batch_inputs_np, word_ph: batch_words_np, training:False})
             cur_loss = sess.run(loss, feed_dict={input_ph: batch_inputs_np, word_ph: batch_words_np, training:False})
@@ -148,7 +148,7 @@ def get_prediction(model, nn_model, test_sentences, test_stars, input_ph, word_p
     print('begin predicting')
     test_inputs, test_true_words = prepare_input_for_nn(model, test_sentences, test_stars, reverse=False)
     print('test true word len = {}'.format(len(test_true_words)))
-    test_inputs = np.reshape(np.array(test_inputs), (len(test_inputs), model.vector_size))
+    test_inputs = np.reshape(np.array(test_inputs), (len(test_inputs), model.vector_size+1))
     test_true_words = np.reshape(np.array(test_true_words), (len(test_true_words), model.vector_size))
     with tf.Session() as sess:
         saver = tf.train.Saver()
@@ -203,7 +203,7 @@ def main():
     train_fea, train_label = prepare_input_for_nn(wv_model, train_sentences, train_stars, reverse=False)
     print('---------------- Done Prepaing Input for Neural Network ----------------')
     
-    input_ph = tf.placeholder(tf.float32, [None, wv_model.vector_size], name='train_input')
+    input_ph = tf.placeholder(tf.float32, [None, wv_model.vector_size+1], name='train_input')
     word_ph = tf.placeholder(tf.float32, [None, wv_model.vector_size], name='train_label')
     training = tf.placeholder(tf.bool)
     
