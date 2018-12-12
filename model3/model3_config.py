@@ -1,7 +1,7 @@
 # model3_config.py
 
 '''
-parameters specific to model 2
+parameters specific to model 3
 '''
 
 class model3_params:
