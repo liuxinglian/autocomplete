@@ -7,10 +7,10 @@ import tensorflow as tf
 from gensim.models import Word2Vec
 import gensim.models.keyedvectors as word2vec
 from model2_config import model2_params
-
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from system_config import system_params
 from prep_data import get_review_data, get_word_embedding
+from dict_filter import get_esaved
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"]="3"
 
@@ -86,8 +86,10 @@ def prepare_input_for_nn(model, sentences, stars, reverse=False):
 def build_nn(input_ph, out_size=100):
     hidden1 = tf.layers.dense(inputs=input_ph, units=128, activation=tf.nn.relu)
     hidden2 = tf.layers.dense(inputs=hidden1, units=256, activation=tf.nn.relu)
-    hidden3 = tf.layers.dense(inputs=hidden2, units=128, activation=tf.nn.relu)
-    output = tf.layers.dense(inputs=hidden3, units=out_size)
+    hidden3 = tf.layers.dense(inputs=hidden2, units=512, activation=tf.nn.relu)
+    hidden4 = tf.layers.dense(inputs=hidden3, units=256, activation=tf.nn.relu)
+    hidden5 = tf.layers.dense(inputs=hidden4, units=128, activation=tf.nn.relu)
+    output = tf.layers.dense(inputs=hidden5, units=out_size)
     return output
 
 def get_loss(pred_word, true_word):
@@ -164,13 +166,16 @@ def get_accuracy(model, true_words, pred_words, topn=10):
         true_word_vec = true_words[i]
         pred_word_vec = pred_words[i]
 
-        temp1 = model.most_similar([true_word_vec], [], topn)
+        temp1 = model.most_similar([true_word_vec], [], 1)
         true_words_set = set([pair[0] for pair in temp1])
-        temp2 = model.most_similar([pred_word_vec], [], topn)
+        temp2 = model.most_similar([pred_word_vec], [], 10)
         pred_words_set = set([pair[0] for pair in temp2])
 
         if bool(true_words_set & pred_words_set):
             correct += 1
+
+        if i % 1000 == 0:
+            print('done calculating acc idx = {}'.format(i))
 
     return correct / len(true_words)
 
@@ -190,8 +195,8 @@ def main():
     start_test, end_test = model_params.test_start, model_params.test_end
     
     print('---------------- Getting Data ----------------')
-    wv_model, train_sentences, train_stars = get_word_embedding(sys_params.all_reviews_jsonfn, start_train, end_train)
-    test_sentences, test_stars = get_review_data(sys_params.all_reviews_jsonfn, start_test, end_test, model_params.is_shuffle)
+    wv_model, train_sentences, train_stars = get_word_embedding(sys_params.all_reviews_jsonfn, start_train, end_train, use_glove=True)
+    test_sentences, test_stars = get_review_data(sys_params.all_reviews_jsonfn, start_test, end_test, shuffle=False, training=False)
     print('---------------- Done Getting Data ----------------')
 
     print('---------------- Prepaing Input for Neural Network ----------------')
@@ -222,6 +227,10 @@ def main():
     print("---------------- Getting Accuracy ----------------")
     acc = get_accuracy(wv_model, test_true_words, test_pred_words)
     print('Accuracy is {}'.format(acc))
+    print("---------------- Getting esaved ----------------")
+    eSaved = get_esaved(wv_model, test_true_words, test_pred_words, topn=1, cons=20)
+    print("----------------------- DONE WITH GET ESAVED -----------------------")
+    print('eSaved = {}'.format(eSaved))
 
 if __name__ == '__main__':
     main()
