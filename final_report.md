@@ -4,7 +4,7 @@ It should include:
 
   * A description of the problem you are addressing, including definition, examples, motivation, applications.
   
-  * A review of related work, and how it relates to your project. Aim to include at least six references(more are encouraged).
+  * A review of related work, and how it relates to your project. Aim to include at least six references (more are encouraged).
   
   * A detailed description of the datasets you use, including a description of the method you used to collect the data, issues encountered during data collection, data annotation (if any), interesting/representative examples from the data, etc.
   
