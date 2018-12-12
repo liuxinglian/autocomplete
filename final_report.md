@@ -6,7 +6,7 @@ It should include:
   
   * A review of related work, and how it relates to your project. Aim to include at least six references(more are encouraged).
   
-  * A detailed description of the datasets you use, including a description of the method you used to collectthe data, issues encountered during data collection, data annotation (if any), interesting/representative examples from the data, etc.
+  * A detailed description of the datasets you use, including a description of the method you used to collect the data, issues encountered during data collection, data annotation (if any), interesting/representative examples from the data, etc.
   
   * A detailed description of your approach, highlighting any original contributions.
   
