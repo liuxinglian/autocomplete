@@ -63,6 +63,10 @@ Haiyang Huang (hyhuang), Xinglian Liu (xinglian), Yuanhang Luo (royluo), Yuzhou 
   * Usage of the models that we built is as follows:
   
     * Model 1
+    
+      ```shell
+      python model1/model1.py
+      ```
   
     * Model 2
   
