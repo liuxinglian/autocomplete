@@ -2,7 +2,7 @@ The final report should include a description of the complete work on the projec
 
 It should include:
 
-  * A description of the problem you are addressing, including definition, examples, motivation, applica-tions.
+  * A description of the problem you are addressing, including definition, examples, motivation, applications.
   
   * A review of related work, and how it relates to your project. Aim to include at least six references(more are encouraged).
   
