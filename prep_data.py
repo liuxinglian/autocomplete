@@ -8,46 +8,56 @@ import nltk
 import tensorflow as tf
 from gensim.models import Word2Vec
 import gensim.models.keyedvectors as word2vec
-import random
 
-def get_review_data(filename, start, end, is_shuffle=False):
+def get_review_data(filename, start, end, shuffle=False, training=True):
     with open(filename) as f:
         data = f.readlines()
     reviews = [json.loads(x.strip()) for x in data]
-    
     sentences = []
     stars = []
     # sentences = [nltk.word_tokenize(reviews[i]['text'].lower()) for i in range(start, end)]
-    if is_shuffle:
-        n = end - start
-        choose_index = random.sample(range(len(reviews)), n)
+    if not shuffle:
+        for i in range(start, end):
+            sentences.append(nltk.word_tokenize(reviews[i]['text'].lower()))
+            stars.append(reviews[i]['stars'])
     else:
-        choose_index = range(start, end)
-    for i in choose_index:
-        sentences.append(nltk.word_tokenize(reviews[i]['text'].lower()))
-        stars.append(reviews[i]['stars'])
+        if training:
+            print('randomly selecting reviews for training')
+        else:
+            print('randomly selecting reviews for testing')
+        
+        index = list(range(len(reviews)))
+        index = np.random.choice(index, size=end-start, replace=False)
+        for i in index:
+            sentences.append(nltk.word_tokenize(reviews[i]['text'].lower()))
+            stars.append(reviews[i]['stars'])
 
     return sentences, stars
 
 # return word2Vec model that can extract word embedding
-def get_word_embedding(filename, start_train, end_train):
+def get_word_embedding(filename, start_train, end_train, use_glove=True):
     train_size = end_train - start_train
     path = 'model_' + str(train_size) + '.txt'
-    sentences, stars = get_review_data(filename, start_train, end_train)
+    sentences, stars = get_review_data(filename, start_train, end_train, shuffle=False)
     saved_model = my_file = Path(path)
-
-    if not saved_model.is_file():
-        
-        model = Word2Vec(sentences, size=100, workers=8, sg=1, min_count=1)
-        
-        # save the trained model
-        model.wv.save_word2vec_format(path)
-        saved_model = my_file = Path(path)
+    if use_glove:
+        print('use glove pred trained word embedding')
+        model = word2vec.KeyedVectors.load_word2vec_format('glove.6B/glove.6B.100d.txt', binary=False)
 
     else:
-        model = word2vec.KeyedVectors.load_word2vec_format(path, binary=False)
+        print('train word2vec with our own dataset')
+        if not saved_model.is_file():
+            
+            model = Word2Vec(sentences, size=100, workers=8, sg=1, min_count=1)
+            
+            # save the trained model
+            model.wv.save_word2vec_format(path)
+            saved_model = my_file = Path(path)
 
-    learned_vocab = list(model.wv.vocab)
+        else:
+            model = word2vec.KeyedVectors.load_word2vec_format(path, binary=False)
+
+    # learned_vocab = list(model.wv.vocab)
     # print(model['pizza'])
     # print(list(learned_vocab))
     # print(model.most_similar(positive=[model['pizza']], topn=3))
