@@ -1,13 +1,14 @@
 from pathlib import Path
 from operator import itemgetter
-import json
+import json, os, sys
 import numpy as np
 import nltk
 import tensorflow as tf
 from gensim.models import Word2Vec
 import gensim.models.keyedvectors as word2vec
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from dict_filter import get_esaved
-from model2 import get_review_data, get_word_embedding
+from prep_data import get_review_data, get_word_embedding
 
 SAVE_PATH = './model/m.cpkt'
 
