@@ -70,15 +70,18 @@ Haiyang Huang (hyhuang), Xinglian Liu (xinglian), Yuanhang Luo (royluo), Yuzhou 
       ```shell
       python model1/model1.py
       ```
+      To change the hyperparameter of model 1, please change the variables in model1/model1_config.py
   
     * Model 2
   
       ```shell
       python model2/model2.py
       ```
+      To change the hyperparameter of model 2, please change the variables in model2/model2_config.py
 
     * Model 3
 
       ```shell
       python model3/model3.py
       ```
+      To change the hyperparameter of model 3, please see the documentation at https://github.com/liuxinglian/autocomplete/wiki/model3.py
