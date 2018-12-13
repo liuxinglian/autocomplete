@@ -79,5 +79,5 @@ Haiyang Huang (hyhuang), Xinglian Liu (xinglian), Yuanhang Luo (royluo), Yuzhou 
     * Model 3
 
       ```shell
-      python model3/model3_star.py
+      python model3/model3.py
       ```
