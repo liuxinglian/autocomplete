@@ -6,13 +6,13 @@ parameters specific to model 1
 
 class model1_params:
     def __init__(self):
-        self.n = 4
+        self.n = 2 
         self.topn = 10
 
         self.add_star = False
         self.is_shuffle = True
         
-        self.train_size = 1000
+        self.train_size = 10000
         self.train_start = 0
         self.train_end = self.train_start + self.train_size
         

@@ -15,9 +15,9 @@ import nltk
 from gensim.models import Word2Vec
 import gensim.models.keyedvectors as word2vec
 from model1_config import model1_params
-from dict_filter import get_esaved
 from nltk.util import ngrams
 from collections import Counter
+import pygtrie as trie
 import heapq, copy
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -68,15 +68,16 @@ class Language_Model(object):
                  n,
                  voc_set,
                  smoothing='add_one'):
-        assert(self.smoothing is None or self.smoothing == 'add_one')
+        assert(smoothing is None or smoothing == 'add_one')
         self.ngrams = Counter(ngrams)
         self.n = n
         self.smoothing = smoothing
         self.voc_set = voc_set
         self.num_voc = len(voc_set)
         self.voc_list = list(voc_set)
+        self.pred_dict = {}
     
-    def predict(prev_words, topn=10):
+    def predict(self, prev_words, topn=10):
         '''
         Generate topn predictions given the prev_words.
         Input:
@@ -88,10 +89,14 @@ class Language_Model(object):
         '''
 
         h = []
+        # Optimization using DP
+        if prev_words in self.pred_dict:
+            return self.pred_dict[prev_words]
+        prev_words = list(prev_words)
+        prev_words.append("")
         for word in self.voc_list:
-            temp = copy.deepcopy(prev_words)
-            temp.append(word)
-            temp = tuple(temp)
+            prev_words[-1] = word
+            temp = tuple(prev_words)
             if self.smoothing == 'add_one':
                 prob = (self.ngrams[temp] + 1) / (self.voc_set[word] + self.num_voc)
             else:
@@ -101,15 +106,37 @@ class Language_Model(object):
         heapq.heapify(h)
         top_wp = heapq.nlargest(topn, h)
         prediction = [wp.word for wp in top_wp]
-        return predictions
+        self.pred_dict[tuple(prev_words[0:-1])]=prediction
+        return prediction
 
-def ngram_train(filename, start_train, end_train, n, *args, **kwargs):
+def sentence_concat(sentences):
+    '''
+    This is a helper function that concat a list of sentences into one sentence.
+    Input: 
+        sentences, which is a list of list of strings, each string represents a word
+    Output:
+        sentences, which is a list of strings, each string represents a word
+    '''
+    temp = []
+    for sentence in sentences:
+        temp += sentence
+    return temp    
+
+def ngram_train(filename, start_train, end_train, n):
     '''
     Generates the language model with the given parameters.
+    Input:
+        filename: a string of location of corpus
+        start_train, end_train: start and end index
+        n: hyperparameter
+    Output:
+        a language model instance
     '''
     print('training the model')
     train_sentences, stars = get_review_data(filename, start_train, end_train)
-    train_ngrams = ngrams(train_sentences, n, *args, **kwargs)
+    train_sentences = [sentence[5:] for sentence in train_sentences]
+    train_sentences = sentence_concat(train_sentences)
+    train_ngrams = list(ngrams(train_sentences, n))
     voc_set = Counter(train_sentences)
     lm = Language_Model(train_ngrams, n, voc_set)
     print('done')
@@ -118,9 +145,13 @@ def ngram_train(filename, start_train, end_train, n, *args, **kwargs):
 def ngram_test(filename, start_test, end_test, n):
     """
     Generates the test inputs.
+    Output:
+        Some ngrams with their last word as label and the other as feed data.
     """
     test_sentences, stars = get_review_data(filename, start_test, end_test)
-    test_ngrams = ngrams(train_sentences, n, *args, **kwargs)
+    test_sentences = [sentence[5:] for sentence in test_sentences]
+    test_sentences = sentence_concat(test_sentences)
+    test_ngrams = list(ngrams(test_sentences, n))
     return test_ngrams
 
 def get_prediction(lm, test_ngrams, topn=10):
@@ -130,7 +161,11 @@ def get_prediction(lm, test_ngrams, topn=10):
     print('begin predicting')
     test_true_words = []
     test_pred_words = []
+    k = 0
     for ngram in test_ngrams:
+        k += 1
+        if k % 100 == 0:
+            print(k)
         prev_words = ngram[:-1]
         pred_words = lm.predict(prev_words, topn)
         test_true_words.append(ngram[-1])
@@ -173,7 +208,7 @@ def get_esaved(true_words, pred_words, topn=1):
     for i in range(len(true_words)):
 
         true_word = true_words[i]
-        pred_word_list = pred_words[i]
+        pred_words_list = pred_words[i]
 
         # build a trie tree to speed up the finding process
         t = trie.CharTrie()
@@ -217,7 +252,7 @@ def main():
     
     print('---------------- Getting Data and Training----------------')
     lm = ngram_train(sys_params.all_reviews_jsonfn, start_train, end_train, model_params.n)
-    test_ngrams = ngram_test(sys_params.all_reviews_jsonfn, start_test, end_test, model_params.n, model_params.is_shuffle)
+    test_ngrams = ngram_test(sys_params.all_reviews_jsonfn, start_test, end_test, model_params.n)
     print('---------------- Done Getting Data and Training----------------')
 
     # begin predicting
@@ -226,10 +261,11 @@ def main():
     print("---------------- Done Predicting ----------------")
     print("---------------- Getting Accuracy ----------------")
     acc = get_accuracy(test_true_words, test_pred_words, 10)
-    print('Accuracy is {}'.format(acc))
+    print('Accuracy is {} for n = {}'.format(acc, model_params.n))
     print("---------------- Getting eSaved ----------------")
     eSaved = get_esaved(test_true_words, test_pred_words)
-    print('eSaved is {}'.format(eSaved))
+    print('eSaved is {} for n = {}'.format(eSaved, model_params.n))
 
 if __name__ == '__main__':
     main()
+
