@@ -2,6 +2,8 @@
 
 ### Introduction
 
+Inspired by *Smart Compose*, a new feature recently launched by Google for its email service that provides automatic sentence completion using machine learning and artificial intelligence techniques, we aim to build a system that could do auto sentence completion on yelp user reviews.
+
 <!--
 ##### Team members: 
 Haiyang Huang (hyhuang), Xinglian Liu (xinglian), Yuanhang Luo (royluo), Yuzhou Mao (myz)
