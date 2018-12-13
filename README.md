@@ -47,6 +47,7 @@ Haiyang Huang (hyhuang), Xinglian Liu (xinglian), Yuanhang Luo (royluo), Yuzhou 
     "cool": 0
 }
 ```
+* The small_dataset_1200.json consists of randomly selected 1200 reviews from Yelp dataset, mainly used for hyperparameter tuning. The large_dataset_12000.json consists of randomly selected 12000 reviews from Yelp dataset, which is used for training our model with 10000 reviews and test on 2000 reviews to get the performance of our models.
 
 ### Requirements
 
