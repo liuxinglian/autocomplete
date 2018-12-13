@@ -272,8 +272,8 @@ def get_accuracy(model, true_words, pred_words, topn=10):
 
 
 def main():
-    filename='partial_reviews1000.json'
-    #filename='large_dataset_12000.json'
+    # filename='partial_reviews1000.json'
+    filename='large_dataset_12000.json'
     if_pretrained = False
 
     model, sentences, stars = get_word_embedding(filename,0, 10,use_glove=if_pretrained)
