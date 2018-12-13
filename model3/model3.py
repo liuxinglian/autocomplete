@@ -274,9 +274,9 @@ def get_accuracy(model, true_words, pred_words, topn=10):
 def main():
     # filename='partial_reviews1000.json'
     filename='large_dataset_12000.json'
-    if_pretrained = False
+    if_pretrained = True
 
-    model, sentences, stars = get_word_embedding(filename,0, 10,use_glove=if_pretrained)
+    model, sentences, stars = get_word_embedding(filename,0, 10000,use_glove=if_pretrained)
     #Zprint(stars)
     #TODO: to change
     #average 118 tokens per review, so 118/2=59
