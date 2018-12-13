@@ -15,7 +15,6 @@ def get_review_data(filename, start, end, shuffle=False, training=True):
     reviews = [json.loads(x.strip()) for x in data]
     sentences = []
     stars = []
-    # sentences = [nltk.word_tokenize(reviews[i]['text'].lower()) for i in range(start, end)]
     if not shuffle:
         for i in range(start, end):
             sentences.append(nltk.word_tokenize(reviews[i]['text'].lower()))
