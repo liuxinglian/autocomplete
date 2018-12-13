@@ -41,7 +41,7 @@ def get_word_embedding(filename, start_train, end_train, use_glove=True):
     saved_model = my_file = Path(path)
     if use_glove:
         print('use glove pred trained word embedding')
-        model = word2vec.KeyedVectors.load_word2vec_format('glove.6B/glove.6B.100d.txt', binary=False)
+        model = word2vec.KeyedVectors.load_word2vec_format('glove.6B.100d.txt', binary=False)
 
     else:
         print('train word2vec with our own dataset')
