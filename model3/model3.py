@@ -297,7 +297,7 @@ def main():
     cell_ty = 'lstm'
     n_layers = 3
     if_bidirect = True
-    if_attention = True
+    if_attention = False
     choose_n = 10
     mode_ = ""
     
