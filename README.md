@@ -1,5 +1,7 @@
 ## Review Auto Completion
 
+The complete documentation of our code is at the wiki page: https://github.com/liuxinglian/autocomplete/wiki.
+
 ### Introduction
 
 Inspired by *Smart Compose*, a new feature recently launched by Google for its email service that provides automatic sentence completion using machine learning and artificial intelligence techniques, we aim to build a system that could do auto sentence completion on yelp user reviews.
@@ -59,8 +61,6 @@ Haiyang Huang (hyhuang), Xinglian Liu (xinglian), Yuanhang Luo (royluo), Yuzhou 
     * pygtrie==2.3
 
 ### Usage
-
-  * The complete documentation of the code is at the wiki page: https://github.com/liuxinglian/autocomplete/wiki.
 
   * Usage of the models that we built is as follows:
   
